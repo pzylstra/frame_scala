@@ -1,0 +1,23 @@
+*.class
+*.log
+
+# vim 
+*~
+*.swp
+
+# sbt and Scala-IDE bits
+.cache
+.history/
+.lib/
+.project
+.classpath
+dist/*
+target/
+lib_managed/
+src_managed/
+project/boot/
+project/plugins/project/
+.scala_dependencies
+.worksheet
+*.sc
+
