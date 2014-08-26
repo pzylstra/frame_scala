@@ -5,11 +5,9 @@ import com.vividsolutions.jts.{geom => JTS}
 /**
  * An immutable wrapper around the JTS Coordinate class.
  */
-class Coord(val x: Double, val y: Double) {
+case class Coord(val x: Double, val y: Double) {
   
   private val jtsCoord: JTS.Coordinate = new JTS.Coordinate(x, y)
-  
-  def this(c: JTS.Coordinate) = this(c.x, c.y)
   
   /**
    * Returns a new Coord offset from this Coord by dx, dy.
@@ -25,19 +23,25 @@ class Coord(val x: Double, val y: Double) {
     Coord(x + distance * math.cos(angle), y + distance * math.sin(angle))
     
   /**
+   * Finds the angle to another Coord.
+   */
+  def angleTo(other: Coord): Double =
+    math.atan2(other.y - y, other.x - x)
+    
+  /**
    * Finds the absolute distance between this Coord and another.
    */
   def distanceTo(other: Coord): Double = 
     jtsCoord.distance(other.jtsCoord) 
+    
+  def closeTo(other: Coord)(implicit tol: XYTolerance): Boolean =
+    (x - other.x).abs <= tol.xtol && (y - other.y).abs <= tol.ytol 
     
   override def toString =
     f"ImmutableCoordinate(${x}%.4f, ${y}%.4f)"
 }
 
 object Coord {
-  def apply(x: Double, y: Double) =
-    new Coord(x, y)
-  
   def apply(jtsCoord: JTS.Coordinate) =
     new Coord(jtsCoord.x, jtsCoord.y)
 }

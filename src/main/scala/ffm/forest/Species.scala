@@ -1,8 +1,9 @@
 package ffm.forest
 
-import ffm.geometry.CrownPoly
 import ffm.ModelSettings
+import ffm.geometry.CrownPoly
 import ffm.numerics.Numerics
+import ffm.util.Options
 
 /**
  * Species.
@@ -18,7 +19,7 @@ class Species private (
     val propDead: Double,
     val propSilicaFreeAsh: Option[Double],
     val ignitionTempProvided: Option[Double],
-    val leafForm: Leaf.Form,
+    val leafForm: LeafForm,
     val leafThickness: Double,
     val leafWidth: Double,
     val leafLength: Double,
@@ -61,7 +62,7 @@ class Species private (
    */
   def ignitionDelayTime(temperature: Double): Double = {
     val leafFactor = leafForm match {
-      case Leaf.Round => 4.0
+      case LeafForm.Round => 4.0
       case _ => 2.0
     }
     
@@ -134,7 +135,7 @@ object Species {
     propDead: Double,
     propSilicaFreeAsh: Option[Double],
     ignitionTemp: Option[Double],
-    leafForm: Leaf.Form,
+    leafForm: LeafForm,
     leafThickness: Double,
     leafWidth: Double,
     leafLength: Double,
@@ -150,7 +151,7 @@ object Species {
     
     isProportion("propDead", propDead, allowZero=true)
     
-    require(propSilicaFreeAsh.isDefined || ignitionTemp.isDefined, 
+    require(Options.atLeast(1, propSilicaFreeAsh, ignitionTemp), 
       s"species $name has neither silica free ash proportion or ignition temp provided")
       
     propSilicaFreeAsh match {
@@ -179,6 +180,16 @@ object Species {
         stemOrder, clumpDiameter, clumpSeparation)  
   } 
   
+  
+  /**
+   * Tests if a species should be treated as a grass.
+   */
+  def isGrass(sp: Species, stratumLevel: Stratum.Level): Boolean =
+    stratumLevel == Stratum.NearSurface && 
+    sp.propDead > 0.5 &&
+    sp.leafThickness < 0.00035
+  
+    
   private def isNotNegative(name: String, x: Double) {
     require(x >= 0.0, s"$name cannot have a negative value (got $x)")
   }
@@ -194,3 +205,4 @@ object Species {
       require(x > 0.0 && x <= 1.0, s"$name must be a proportion greater than zero (got $x)")    
   }
 }
+

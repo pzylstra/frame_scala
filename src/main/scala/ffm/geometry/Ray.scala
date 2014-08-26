@@ -1,9 +1,6 @@
 package ffm.geometry
 
-class Ray(val origin: Coord, val angle: Double) {
-
-}
-
-object Ray {
-  def apply(origin: Coord, angle: Double) = new Ray(origin, angle)
-}
+/**
+ * Represents a semi-infinite line with a given origin and angle.
+ */
+case class Ray(origin: Coord, angle: Double)

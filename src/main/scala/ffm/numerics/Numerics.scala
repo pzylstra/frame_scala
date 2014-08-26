@@ -24,4 +24,7 @@ object Numerics {
     
   def almostZero(a: Double) =
     almostEq(a, 0.0)
+    
+  def clampToZero(a: Double) =
+    if (almostZero(a)) 0.0 else a
 }

@@ -7,10 +7,8 @@ class Stratum(val level: Stratum.Level,
 
 }
 
-
 object Stratum {
-  sealed trait Level
-  
+  sealed trait Level  
   case object Unknown extends Level
   case object Surface extends Level
   case object NearSurface extends Level

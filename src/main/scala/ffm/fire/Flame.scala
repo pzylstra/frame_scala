@@ -7,9 +7,10 @@ import ffm.forest.Stratum
 
 class Flame(flen: Double, val angle: Double, val origin: Coord, val depthIgnited: Double, val deltaTemperature: Double) {
 
-  val flameLength = flen.max(depthIgnited)
-
-  val isNull = Numerics.leq(flameLength, 0.0)
+  val flameLength = flen.max(depthIgnited)  
+  
+  // Unlike the original C++ code we don't allow null flames
+  require( flameLength > 0, "flame length must be greater than 0")
 
   val tip = origin.bearing(angle, flameLength)
 
@@ -26,12 +27,10 @@ class Flame(flen: Double, val angle: Double, val origin: Coord, val depthIgnited
    * Determines the temperature at some distance along the plume from the origin of 
    * this flame. 
    * 
-   * Returns None if this flame is not burning (ie. isNull is true).
-   *
    * This is from Section 5.21 of Zylstra's thesis, with corrections.
    * See also Weber et al as referenced in thesis.
    */
-  def plumeDeltaTemperature(dist: Double): Option[Double] = {
+  def plumeDeltaTemperature(dist: Double): Double = {
     // Helper method
     def calculatedTemp = {
       val a = -1.0 / (flameLength * (flameLength - depthIgnited))
@@ -41,9 +40,8 @@ class Flame(flen: Double, val angle: Double, val origin: Coord, val depthIgnited
         deltaTemperature * flameLength / dist * math.exp(a * (flameLength - depthIgnited) * (flameLength - depthIgnited))
     }
     
-    if (isNull) None 
-    else if (dist <= depthIgnited) Some(deltaTemperature) 
-    else Some(calculatedTemp)
+    if (dist <= depthIgnited) deltaTemperature
+    else calculatedTemp
   }
 
   /**
@@ -52,21 +50,24 @@ class Flame(flen: Double, val angle: Double, val origin: Coord, val depthIgnited
    * 
    * Returns None if this flame is not burning (ie. isNull is true).
    */
-  def plumeTemperature(dist: Double, ambientTemp: Double): Option[Double] =
-    plumeDeltaTemperature(dist) map (_ + ambientTemp)
+  def plumeTemperature(dist: Double, ambientTemp: Double): Double =
+    plumeDeltaTemperature(dist) + ambientTemp
 
   /**
    * Determines the temperature at some point with the given ambient temperature.
    * Returns None if this flame is not burning (ie. isNull is true).
    */
-  def plumeTemperature(pos: Coord, ambientTemp: Double): Option[Double] =
+  def plumeTemperature(pos: Coord, ambientTemp: Double): Double =
     plumeTemperature(origin.distanceTo(pos), ambientTemp)
 
-  // inversion of deltaPlumeTemp, returns distance from origin at which targetTemp is achieved
-  def inversePlumeTemperature(targetTemp: Double, ambientTemp: Double): Option[Double] = {
-    if (flameLength < 0 || depthIgnited < 0 || flameLength < depthIgnited)
-      None
-    else if (Numerics.gt(targetTemp, deltaTemperature + ambientTemp))
+  /** 
+   * Determines the distance from origin at which targetTemp is achieved.
+   * This is the inverse of plumeDeltaTemperature.
+   * 
+   * Returns None if the target temperature is higher than the flame temperature.
+   */
+  def distanceForTemperature(targetTemp: Double, ambientTemp: Double): Option[Double] = {
+    if (Numerics.gt(targetTemp, deltaTemperature + ambientTemp))
       None
     else {
       val rtnVal =
