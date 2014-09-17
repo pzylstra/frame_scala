@@ -1,8 +1,8 @@
 package ffm.fire
 
+import ffm.ModelSettings
 import ffm.geometry._
 import ffm.numerics.Numerics
-import ffm.forest.Stratum
 
 
 class Flame(flen: Double, val angle: Double, val origin: Coord, val depthIgnited: Double, val deltaTemperature: Double) {
@@ -12,7 +12,7 @@ class Flame(flen: Double, val angle: Double, val origin: Coord, val depthIgnited
   // Unlike the original C++ code we don't allow null flames
   require( flameLength > 0, "flame length must be greater than 0")
 
-  val tip = origin.bearing(angle, flameLength)
+  val tip = origin.toBearing(angle, flameLength)
 
   val plume = Ray(origin, angle)
   
@@ -53,13 +53,6 @@ class Flame(flen: Double, val angle: Double, val origin: Coord, val depthIgnited
   def plumeTemperature(dist: Double, ambientTemp: Double): Double =
     plumeDeltaTemperature(dist) + ambientTemp
 
-  /**
-   * Determines the temperature at some point with the given ambient temperature.
-   * Returns None if this flame is not burning (ie. isNull is true).
-   */
-  def plumeTemperature(pos: Coord, ambientTemp: Double): Double =
-    plumeTemperature(origin.distanceTo(pos), ambientTemp)
-
   /** 
    * Determines the distance from origin at which targetTemp is achieved.
    * This is the inverse of plumeDeltaTemperature.
@@ -89,9 +82,27 @@ class Flame(flen: Double, val angle: Double, val origin: Coord, val depthIgnited
 
 }
 
-case class PreHeatingFlame(flame: Flame, level: Stratum.Level, startTime: Double, endTime: Double)
 
 object Flame {
   def apply(flameLength: Double, angle: Double, origin: Coord, depthIgnited: Double, deltaTemperature: Double) = 
     new Flame(flameLength, angle, origin, depthIgnited, deltaTemperature)
+
+  /**
+   * Calculates flame angle from wind speed and slope.
+   */
+  def windEffectFlameAngle(flameLength: Double, windSpeed: Double, slope: Double): Double = {
+    if (Numerics.almostZero(flameLength)) 0.0
+    else if (Numerics.almostZero(windSpeed)) math.Pi / 2
+    else {
+      val effect =
+        if (windSpeed > 0)
+          math.atan(0.88664 * math.pow(flameLength, 1.085) / math.pow(windSpeed, 1.5))
+        else
+          math.Pi - math.atan(0.88664 * math.pow(flameLength, 1.085) / math.pow(windSpeed.abs, 1.5))
+
+      math.min(
+        math.Pi + slope - ModelSettings.MinFlameSepFromSlope,
+        math.max(effect, slope + ModelSettings.MinFlameSepFromSlope))
+    }
+  }
 }

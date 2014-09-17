@@ -10,6 +10,6 @@ object XYTolerance {
   def apply(tol: Double): XYTolerance =
     XYTolerance(tol, tol)
   
-  /** Default instance with X and Y tolerance == 1.0e-8. */
-  val default = XYTolerance(1.0e-8)
+  /** Uniform tiny X and Y tolerance == 1.0e-8. */
+  val Tiny = XYTolerance(1.0e-8)
 }

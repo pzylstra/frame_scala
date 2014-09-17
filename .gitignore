@@ -21,3 +21,8 @@ project/plugins/project/
 .worksheet
 *.sc
 
+# classes with typical test names
+Foo.scala
+Bar.scala
+Blah.scala
+

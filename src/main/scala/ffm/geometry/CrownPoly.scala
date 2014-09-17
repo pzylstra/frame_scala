@@ -24,10 +24,10 @@ class CrownPoly private (jtsPoly: JTS.Polygon) {
   val left: Double = env.getMinX
   val right: Double = env.getMaxX
   
-  val centroid: Coord = Coord(jtsPoly.getCentroid().getCoordinate())
+  val centroid: Coord = jtsPoly.getCentroid().getCoordinate()
   
   val area: Double = jtsPoly.getArea
-
+  
   /**
    * Volume of revolution (assumes bilateral symmetry of polygon).
    */
@@ -59,7 +59,7 @@ class CrownPoly private (jtsPoly: JTS.Polygon) {
     val c0 = ray.origin 
     
     // A point on the Ray outside the envelope of this polygon
-    val c1 = ray.origin.bearing(ray.angle, 2 * width.max(height))
+    val c1 = ray.origin.toBearing(ray.angle, 2 * width.max(height))
     
     val coords = Array(c0, c1)
     val jtsLine = CrownPoly.factory.createLineString(coords)

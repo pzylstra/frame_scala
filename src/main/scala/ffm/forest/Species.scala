@@ -18,13 +18,13 @@ class Species private (
     val deadLeafMoisture: Double,
     val propDead: Double,
     val propSilicaFreeAsh: Option[Double],
-    val ignitionTempProvided: Option[Double],
+    val ignitionTemperatureProvided: Option[Double],
     val leafForm: LeafForm,
     val leafThickness: Double,
     val leafWidth: Double,
     val leafLength: Double,
     val leafSeparation: Double,
-    val stemOrder: Int,
+    val stemOrder: Double,
     val clumpDiameter: Double,
     val clumpSeparation: Double
     ) {
@@ -37,12 +37,12 @@ class Species private (
   
   val flameDuration = math.max(
     1.37 * leafWidth * leafThickness * 1.0e6 + 1.61 * leafMoisture - 0.027, 
-    ModelSettings.computationTimeInterval )
+    ModelSettings.ComputationTimeInterval )
     
   /** 
    * Modelled ignition temperature (will be None if silica free ash proportion was not provided) 
    */
-  val ignitionTempModelled: Option[Double] = propSilicaFreeAsh map { prop => 
+  val ignitionTemperatureModelled: Option[Double] = propSilicaFreeAsh map { prop => 
     val logPc = math.log(prop * 100)
     354.0 - 13.9 * logPc - 2.91 * logPc * logPc
   }
@@ -51,11 +51,9 @@ class Species private (
    * Ignition temperature: either the one provided for this species or 
    * one modelled from the proportion of silica free ash.
    */
-  val ignitionTemp: Double =
-    ignitionTempProvided match {
-      case Some(t) => t
-      case None => ignitionTempModelled.get  // this should be defined but if not let the error happen
-    }
+  val ignitionTemperature: Double =
+    (ignitionTemperatureProvided orElse ignitionTemperatureModelled).get
+
     
   /**
    * Ignition delay time for the given temperature.
@@ -115,6 +113,8 @@ class Species private (
       math.max(lengthIgnitedSeg, math.pow(term1 + term2, 0.25) )
     }
   }
+  
+  override def toString = s"Species($name)"
 }
 
 
@@ -123,7 +123,7 @@ class Species private (
  * and check argument values.
  */
 object Species {
-  
+
   /**
    * Creates a new Species object.
    */
@@ -133,18 +133,20 @@ object Species {
     liveLeafMoisture: Double,
     deadLeafMoisture: Double,
     propDead: Double,
-    propSilicaFreeAsh: Option[Double],
-    ignitionTemp: Option[Double],
+    propSilicaFreeAsh: Option[Double] = None,
+    ignitionTemp: Option[Double] = None,
     leafForm: LeafForm,
     leafThickness: Double,
     leafWidth: Double,
     leafLength: Double,
     leafSeparation: Double,
-    stemOrder: Int,
+    stemOrder: Double,
     clumpDiameter: Double,
     clumpSeparation: Double): Species = {
 
     require(!name.trim().isEmpty(), "species name is required")
+    
+    import ffm.util.ArgUtils._
       
     isNotNegative("liveLeafMoisture", liveLeafMoisture)
     isNotNegative("deadLeafMoisture", deadLeafMoisture)
@@ -184,25 +186,12 @@ object Species {
   /**
    * Tests if a species should be treated as a grass.
    */
-  def isGrass(sp: Species, stratumLevel: Stratum.Level): Boolean =
-    stratumLevel == Stratum.NearSurface && 
+  def isGrass(sp: Species, stratumLevel: StratumLevel): Boolean =
+    stratumLevel == StratumLevel.NearSurface && 
     sp.propDead > 0.5 &&
     sp.leafThickness < 0.00035
   
     
-  private def isNotNegative(name: String, x: Double) {
-    require(x >= 0.0, s"$name cannot have a negative value (got $x)")
-  }
   
-  private def isPositive(name: String, x: Double) {
-    require(x > 0.0, s"$name must have a positive value (got $x)")
-  }
-
-  private def isProportion(name: String, x: Double, allowZero: Boolean) {
-    if (allowZero)
-      require(x >= 0.0 && x <= 1.0, s"$name must be a proportion (got $x)")    
-    else
-      require(x > 0.0 && x <= 1.0, s"$name must be a proportion greater than zero (got $x)")    
-  }
 }
 

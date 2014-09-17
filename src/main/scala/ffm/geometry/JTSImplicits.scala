@@ -2,6 +2,8 @@ package ffm.geometry
 
 import com.vividsolutions.jts.{geom => JTS}
 
+import scala.language.implicitConversions
+
 /**
  * Provides implicit conversions to and from mutable JTS classes
  * and corresponding immutable ffm classes.

@@ -12,8 +12,6 @@ import JTSImplicits._
  */
 class Line private(c: Coord, theta: Double) {
   
-  implicit val Tol = XYTolerance.default
-  
   val anchor = c
   
   /** The line angle normalized to (-Pi, Pi]. */
@@ -22,7 +20,7 @@ class Line private(c: Coord, theta: Double) {
   // arbitrary second point on line
   private val secondCoord = {
     val d = 1000.0
-    anchor.offset(math.cos(angle) * d, math.sin(angle) * d)
+    anchor.toOffset(math.cos(angle) * d, math.sin(angle) * d)
   }
   
   /** True if this line is vertical or almost so.  */
@@ -35,15 +33,25 @@ class Line private(c: Coord, theta: Double) {
   /**
    * Attempts to find a coordinate which lies on this line and forms the
    * origin of a Ray passing through targetPoint with the given angle.
+   * 
+   * The errorOnFail argument controls the behaviour when it is not possible
+   * to find an origin: 
+   * - if false (default), then None is returned
+   * - if true, an error is thrown
    */
-  def originOnLine(targetPoint: Coord, angle: Double): Option[Coord] = {
+  def originOnLine(targetPoint: Coord, angle: Double, errorOnFail: Boolean = false): Option[Coord] = {
     if (intersects(targetPoint)) {
       // this line passes through the target point
       Some(targetPoint)
     }
     else {
-      val tline = Line(targetPoint, angle)
-      this.intersection(tline)
+      val ray = Ray(targetPoint, angle + math.Pi)
+      val result = this.intersection(ray)
+      
+      if (errorOnFail && result.isEmpty)
+        throw new Error(f"Failed to find origin for angle=${angle}%.4f and target point $targetPoint")
+      else
+        result
     }
   }
   
@@ -59,12 +67,33 @@ class Line private(c: Coord, theta: Double) {
     
     if (res == null) None else Some(res)
   }
+
+  /**
+   * Finds the intersection point with a ray.
+   * 
+   * If the ray is parallel to, or pointing away from, this line then
+   * None is returned.
+   * 
+   * The calculation does a line intersection and then checks that the angle
+   * from the ray origin to the intersection coordinate matches the angle of 
+   * the ray.
+   */
+  def intersection(ray: Ray): Option[Coord] = {
+    intersection(Line(ray.origin, ray.angle)) match {
+      case None => None
+      case Some(coord) =>
+        val theta = ray.origin.angleTo(coord)
+        val diff = Angle.diff(theta, ray.angle)
+        if ( Numerics.almostZero(diff)) Some(coord)
+        else None
+    }
+  }
   
   /**
    * Tests if this Line passes through the given coordinate.
    */
   def intersects(c: Coord): Boolean =
-    if (anchor.closeTo(c)) true
+    if (anchor.almostEq(c)) true
     else if (isVertical) Numerics.almostEq(c.x, anchor.x)
     else if (isHorizontal) Numerics.almostEq(c.y, anchor.y)  
     else Numerics.almostZero( distanceTo(c) )

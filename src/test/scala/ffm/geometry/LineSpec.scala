@@ -5,7 +5,7 @@ import org.scalatest.Matchers
 
 class LineSpec extends FlatSpec with Matchers {
 
-  val anchor = Coord(0, 0)
+  val anchor = Coord.Origin
   val line45 = Line(anchor, math.Pi / 4)
   val bigDist = 1000.0
   
@@ -21,17 +21,17 @@ class LineSpec extends FlatSpec with Matchers {
   }
 
   it should "intersect a distant point in the postive direction" in {
-    val c = anchor.offset(bigDist, bigDist)
+    val c = anchor.toOffset(bigDist, bigDist)
     line45.intersects(c) should be(true)
   }
 
   it should "intersect a distant point in the negative direction" in {
-    val c = anchor.offset(-bigDist, -bigDist)
+    val c = anchor.toOffset(-bigDist, -bigDist)
     line45.intersects(c) should be(true)
   }
 
   it should "not intersect a point off the line" in {
-    line45.intersects(anchor.offset(1.0, 0.0)) should be(false)
+    line45.intersects(anchor.toOffset(1.0, 0.0)) should be(false)
   }
   
   it should "report an angle normalized to (-Pi, Pi]" in {
@@ -52,14 +52,14 @@ class LineSpec extends FlatSpec with Matchers {
   }
   
   it should "calculate the correct distance to an off-line point" in {
-    line45.distanceTo(anchor.offset(1.0, 0.0)) should be (1 / math.sqrt(2.0) +- Tol)
+    line45.distanceTo(anchor.toOffset(1.0, 0.0)) should be (1 / math.sqrt(2.0) +- Tol)
   }
   
   it should "find the correct intersection point with a non-parallel line" in {
     val other = Line.vertical(Coord(10.0, 0.0))
     line45.intersection(other) match {
       case None => fail("intersection not found")
-      case Some(cx) => cx.closeTo(Coord(10.0, 10.0))(XYTolerance.default) should be (true)
+      case Some(cx) => cx.almostEq(Coord(10.0, 10.0)) should be (true)
     }
   }
   
@@ -68,10 +68,85 @@ class LineSpec extends FlatSpec with Matchers {
   }
   
   it should "not intersect a distinct parallel line" in {
-    val other = Line(anchor.offset(0.0, 1.0), line45.angle)
+    val other = Line(anchor.toOffset(0.0, 1.0), line45.angle)
     line45.intersection(other) should be (None)
   }
-
+  
+  it should "find the correct intersection with a horizontal ray" in {
+    // ray along x axis in negative direction
+    val ray = Ray(Coord(10, 0), -math.Pi)
+    val expectedCoord = Coord.Origin 
+    
+    line45.intersection(ray) match {
+      case None => fail("intersection not found")
+      case Some(coord) => coord.almostEq(expectedCoord) should be (true)
+    }
+  }
+  
+  
+  /////////////////////////////////////////////////////////////////////////////
+  // tests of method originOnLine
+  
+  "method originOnLine" should "return None by default when no origin is found" in {
+    val below = Coord(0, -1)
+    line45.originOnLine(below, math.Pi / 2) should be (None)
+  }
+  
+  it should "throw an error when no origin is found and errorOnFail is true" in {
+    val below = Coord(0, -1)
+    intercept[Error] {
+      line45.originOnLine(below, math.Pi / 2, errorOnFail = true)
+    }
+  }
+  
+  it should "find the correct origin for a point above the line" in {
+    val c = Coord(10, 20)
+    val theta = math.Pi / 3
+    
+    val b = c.y - math.tan(theta) * c.x
+    val expectedX = b / (1 - math.tan(theta))
+    val expectedOrigin = Coord(expectedX, expectedX)
+    
+    line45.originOnLine(c, theta) match {
+      case None => fail("failed to find origin")
+      case Some(coord) =>
+        coord.almostEq(expectedOrigin) should be (true)
+    }
+  }
+  
+  it should "find the correct origin for a point below the line" in {
+    val c = Coord(10, 0)
+    val theta = -math.Pi / 3
+    
+    val b = c.y - math.tan(theta) * c.x
+    val expectedX = b / (1 - math.tan(theta))
+    val expectedOrigin = Coord(expectedX, expectedX)
+    
+    line45.originOnLine(c, theta) match {
+      case None => fail("failed to find origin")
+      case Some(coord) =>
+        coord.almostEq(expectedOrigin) should be (true)
+    }
+  }
+  
+  it should "return the target point when that point lies on the line" in {
+    for (i <- 1 to 100) {
+      // random coord on line45
+      val x = math.random
+      val targetPoint = Coord(x, x)
+      
+      // angle should have no effect
+      val angle = math.random * 2 * math.Pi
+      
+      line45.originOnLine(targetPoint, angle) match {
+        case None => fail("failed to find intersection")
+        case Some(coord) =>
+          coord.almostEq(targetPoint) should be (true)
+      }
+    }
+  }
+  
+  
   /////////////////////////////////////////////////////////////////////////////
   // Vertical line tests
 

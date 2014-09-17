@@ -81,7 +81,7 @@ class CrownPolySpec extends FlatSpec with Matchers {
     
     // horizontal ray crossing centre of poly
     val c = poly.centroid 
-    val ray = Ray(c.offset(-poly.width, 0), angle=0)
+    val ray = Ray(c.toOffset(-poly.width, 0), angle=0)
 
     testIntersectionResult( 
         resultOp = poly.intersection(ray), 
