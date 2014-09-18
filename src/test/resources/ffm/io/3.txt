@@ -1,0 +1,70 @@
+# 03
+
+
+#canopy #############################
+
+begin stratum
+level = canopy
+plant separation = 8.5
+
+
+begin species
+composition = 100, 199
+name =     Eucalyptus dalrympleana
+live leaf moisture =   100e-2, 100e-2
+silica free ash content =      -99
+ignition temperature =       220
+proportion dead =  0
+leaf form =  flat
+leaf thickness = 0.41e-3, 0.07e-3
+leaf width = 20.5e-3, 10e-3
+leaf length =   134e-3, 98e-3
+leaf separation =   1.83e-2
+stem order =  5, 2
+clump separation =   1.9
+clump diameter =  3.6
+he =     16.1
+ht =     33.6
+hc =     12.8
+hp =     35
+w =     5.4
+end species
+
+
+end stratum
+
+# fireline length and incident wind speed are mandatory fields and are
+# metres and km/h respectively
+
+fireline length = 100                         
+incident wind speed =  10  #km/h
+
+# overlapping can be specified as: overlapped, not overlapped, automatic
+# the overlapping specifications can be omitted in which case 
+# they will default to automatic
+
+overlapping = near surface, elevated, automatic
+overlapping = near surface, midstorey, automatic
+overlapping = elevated, midstorey, automatic
+overlapping = elevated, canopy, automatic
+overlapping = midstorey, canopy, automatic
+
+# surface variables
+
+slope =         0                                     #deg
+surface dead fuel moisture content = 0.057
+fuel load tonnes per hectare = 17.3
+mean fuel diameter = 5e-3
+mean fineness leaves = 0.41e-3
+
+# weather variables
+air temperature =    29.2   # degrees C 
+
+
+# type of output
+# permitted values are basic, detailed, comprehensive, monte carlo
+# can also use 1, 2, 3, 4
+
+output level = 2
+monte carlo iterations = 1000
+

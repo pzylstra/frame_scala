@@ -59,7 +59,10 @@ class Stratum private (
   val modelPlantSep = math.max(plantSep, averageWidth)
   
   /** Modelled canopy cover. */
-  val cover = { val p = averageWidth / modelPlantSep; p * p }
+  val cover = { 
+    val p = averageWidth / modelPlantSep 
+    p * p 
+  }
   
   /** Modelled leaf area index. */
   val leafAreaIndex = cover * wtAv( sc => sc.species.leafAreaIndex )

@@ -10,6 +10,15 @@ import scala.collection.mutable.ArrayBuffer
  * Models the effect of a site's vegetation on incident wind speed.
  */
 object VegetationWindModel {
+  
+  /**
+   * Calculates the Wind Reduction Factor.
+   * 
+   * WRF = incident wind speed / wind speed at 1.5m
+   */
+  def windReductionFactor(site: Site): Double =
+    if (site.windSpeed <= 0) 0.0
+    else site.windSpeed / windSpeedAtHeight(1.5, site, includeCanopy = true)
 
   /**
    * Finds the wind speed at the given height within a site considering the damping effect of 
@@ -47,18 +56,18 @@ object VegetationWindModel {
     def iter(curLayers: Vector[VegetationLayer], curWindSpeed: Double, refHt: Double): Double = {
       assert(!curLayers.isEmpty, s"Failed to find level for height=$height") 
       
-      val curLayer = layers.head
+      val curLayer = curLayers.head
       val fn = (z: Double, gamma: Double) => curWindSpeed * math.exp(gamma * (z / refHt - 1.0))
       
       if (curLayer.isEmptyLayer) {
         if (height >= curLayer.lower) curWindSpeed
-        else iter(layers.tail, curWindSpeed, curLayer.lower)
+        else iter(curLayers.tail, curWindSpeed, curLayer.lower)
       
       } else {  // layer with vegetation
         val sumLAI = (curLayer.levels map (levelLAIs)).sum
         val gamma = 1.785 * math.pow(sumLAI, 0.372)
         if (height >= curLayer.lower) fn(height, gamma)
-        else iter(layers.tail, fn(curLayer.lower, gamma), curLayer.lower)
+        else iter(curLayers.tail, fn(curLayer.lower, gamma), curLayer.lower)
       }
     }
     

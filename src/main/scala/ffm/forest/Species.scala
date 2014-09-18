@@ -31,6 +31,7 @@ class Species private (
   
   val propLive = 1.0 - propDead
   
+  /** Approximate leaf area (single side) */
   val leafArea = leafWidth * leafLength / 2.0
   
   val leafMoisture = propLive * liveLeafMoisture + propDead * deadLeafMoisture

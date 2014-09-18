@@ -1,7 +1,9 @@
 package ffm.io
 
-import ffm.forest.Surface
 import scala.util.Try
+
+import ffm.forest.Surface
+import ffm.util.Units.deg2rad
 
 object SurfaceFactory {
 
@@ -24,7 +26,8 @@ object SurfaceFactory {
 
   private def buildSurface(vas: ValueAssignments): Surface = {
     Surface(
-      slope = vas.dval("slope"),
+      // input slope is degrees
+      slope = deg2rad( vas.dval("slope") ),
       deadFuelMoistureProp = vas.dval("deadFuelMoistureProp"),
       fuelLoad = vas.dval("fuelLoad"),
       meanFuelDiameter = vas.dval("meanFuelDiameter"),

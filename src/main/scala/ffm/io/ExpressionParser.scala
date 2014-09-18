@@ -52,8 +52,12 @@ trait ExpressionParser extends JavaTokenParsers {
   /** Parses one or more words delimited by spaces. */
   def wordGroup: Parser[Text] = rep1(word) ^^ { ws => Text(ws.mkString(" ")) }
   
-  /** Parses a word (text string with no spaces). */
-  def word: Parser[String] = """\w+""".r
+  /** 
+   *  Parses a word (text string with no spaces). 
+   *  
+   *  We allow numbers and a few non-alpha characters to be in a word.
+   */
+  def word: Parser[String] = """\w[0-9\w\/\-\_]*""".r
     
   /** Parses two numbers delimited by commas representing mean and range (uniform distribution). */ 
   def numericRange: Parser[NumericRange] = 

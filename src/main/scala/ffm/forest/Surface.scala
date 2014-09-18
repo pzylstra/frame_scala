@@ -10,7 +10,7 @@ case class Surface(
   meanFuelDiameter: Double,
   meanFinenessLeaves: Double) {
 
-  require(slope >= -math.Pi && slope <= math.Pi)
+  require(slope >= -math.Pi && slope <= math.Pi, s"Invalid slope ($slope)")
 
   import ffm.util.ArgUtils._
 
