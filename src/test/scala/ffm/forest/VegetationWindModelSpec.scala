@@ -1,11 +1,15 @@
 package ffm.forest
 
-import ffm.BasicSpec
-import ffm.io._
-import scala.util.Success
 import scala.util.Failure
+import scala.util.Success
+import org.mockito.Mockito._
+import ffm.MockSpec
+import ffm.io.FallbackProvider
+import ffm.io.ParamFileParser
+import ffm.io.SingleSiteFactory
+import ffm.io.ValueAssignments
 
-class VegetationWindModelSpec extends BasicSpec {
+class VegetationWindModelSpec extends MockSpec {
 
   "VegetationWindModel" should "calculate the correct wind reduction factor" in {
     
@@ -26,20 +30,21 @@ class VegetationWindModelSpec extends BasicSpec {
     }
   }
   
+  it should "return 1.0 for wind reduction factor when wind speed is zero" in {
+    val site = mock[Site]
+    when(site.windSpeed) thenReturn (0.0)
+    
+    VegetationWindModel.windReductionFactor(site) should be (1.0)
+  }
+  
   
   /*
    * Helper to load files and create sites.
    * Assumes input files are in resources/ffm/io
    */
   def loadFileAndCreateSite(path: String): Site = {
-    val prefix = "/ffm/io/" + path
-    
-    println("path is " + prefix)
- 
-    val url = getClass.getResource(prefix)
-    
-    println("url is " + url)
-    
+    val resPath = "/ffm/io/" + path
+    val url = getClass.getResource(resPath)
     val modelDef = ParamFileParser.readTextFormatFile(url).get
 
     // get fallback value for dead leaf moisture from the surface 

@@ -17,7 +17,7 @@ object VegetationWindModel {
    * WRF = incident wind speed / wind speed at 1.5m
    */
   def windReductionFactor(site: Site): Double =
-    if (site.windSpeed <= 0) 0.0
+    if (site.windSpeed <= 0) 1.0
     else site.windSpeed / windSpeedAtHeight(1.5, site, includeCanopy = true)
 
   /**
