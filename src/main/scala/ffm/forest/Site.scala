@@ -94,8 +94,10 @@ trait Site {
   
   /**
    * Tests if there exists a vertical association between two strata.
+   * 
+   * FIXME - needs an implementation
    */
-  def isVerticalAssociation(level1: StratumLevel, level2: StratumLevel): Boolean
+  def isVerticalAssociation(level1: StratumLevel, level2: StratumLevel): Boolean = false
 }
 
 /**

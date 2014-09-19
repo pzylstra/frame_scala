@@ -11,24 +11,24 @@ import ffm.util.Options
 
 object IgnitionPathModel {
 
-  // Private constants to indicate run type
-  private val PlantRun = 1
-  private val StratumRun = 2
+  sealed trait RunType
+  case object PlantRun extends RunType
+  case object StratumRun extends RunType
 
   /**
-   * Models an ignition path for a plant canopy
+   * Models an ignition path for a plant canopy.
    */
-  def plantFlameRun = doRun(PlantRun) _
+  def plantFlamePath = generatePath(PlantRun) _
 
   /**
-   * Models an ignition path for a stratum pseudo-canopy
+   * Models an ignition path for a stratum pseudo-canopy.
    */
-  def stratumFlameRun = doRun(StratumRun) _
+  def stratumFlamePath = generatePath(StratumRun) _
 
-  /*
-   * Private method which does the actual computations for both plant and stratum runs.
+  /**
+   * Models an ignition path for a plant canopy or stratum pseudo-canopy.
    */
-  private def doRun(runType: Int)(
+  def generatePath(runType: RunType)(
     site: Site,
     stratumLevel: StratumLevel,
     species: Species,
@@ -102,13 +102,8 @@ object IgnitionPathModel {
         incidentFlame: Option[Flame], plantFlame: Option[Flame], 
         pathLength: Double, pathAngle: Double, curPoint: Coord): Option[Coord] = {
       
-      var ignitionStillPossible = true
-      var ignitablePoint: Option[Coord] = None
-
-      val stepDist = pathLength / ModelSettings.NumPenetrationSteps
-      val testPoints = (stepDist to pathLength by stepDist) map (d => curPoint.toBearing(pathAngle, d))
-
-      for (testPoint <- testPoints if ignitionStillPossible) {
+      // Helper to determine if a test point is ignitable
+      def canIgnite(testPoint: Coord): Boolean = {
         val dryingFactor = computeDryingFactor(curPoint, testPoint, timeStep)
 
         val incidentTemp = (for {
@@ -123,15 +118,19 @@ object IgnitionPathModel {
         } yield t).getOrElse(0.0)
 
         val maxTemp = math.max(incidentTemp, plantTemp)
-        val idt = dryingFactor * calculateIDT(maxTemp)
 
-        if (idt > ModelSettings.ComputationTimeInterval || maxTemp < species.ignitionTemperature)
-          ignitionStillPossible = false
+        if (maxTemp < species.ignitionTemperature)
+          false
+        else if (dryingFactor * calculateIDT(maxTemp) > ModelSettings.ComputationTimeInterval)
+          false
         else
-          ignitablePoint = Some(testPoint)
+          true
       }
 
-      ignitablePoint
+      // Generate test points and return the further ignitable point, or None
+      val stepDist = pathLength / ModelSettings.NumPenetrationSteps
+      val testPoints = (stepDist to pathLength by stepDist) map (d => curPoint.toBearing(pathAngle, d))
+      testPoints.takeWhile(canIgnite).lastOption
     }
 
     
@@ -141,11 +140,8 @@ object IgnitionPathModel {
      */
     def computeDryingFactor(curPoint: Coord, testPoint: Coord, timeStep: Int): Double = {
       var df = dryingFromPreheatingFlames(curPoint, testPoint)
-
       if (df > 0.0) df *= dryingFromIncidentFlames(curPoint, testPoint, timeStep)
-
       if (df > 0.0) df *= dryingFromPlantFlames(curPoint, testPoint)
-
       df
     }
 
@@ -169,7 +165,6 @@ object IgnitionPathModel {
           duration = phf.duration(preHeatingEndTime)
         } yield math.max(0.0, 1.0 - duration / idt)
 
-        // Note: product will return 1.0 if the vector is empty
         dryingPerFlame.product
       }
     }

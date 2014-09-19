@@ -1,19 +1,17 @@
 package ffm.geometry
 
-import org.scalatest.FlatSpec
-import org.scalatest.Matchers
 import org.scalatest.prop.PropertyChecks
 
 import org.scalacheck.Gen
 import org.scalacheck.Arbitrary._
 
-import com.vividsolutions.jts.algorithm.Angle
+import ffm.BasicSpec
 
 /*
  * Tests for the Coord class. These use property-based (ScalaCheck) testing to
  * exercise the class methods with random values.
  */
-class CoordSpec extends FlatSpec with Matchers with PropertyChecks {
+class CoordSpec extends BasicSpec with PropertyChecks {
 
   val Tol = 1.0e-8
   
@@ -123,7 +121,7 @@ class CoordSpec extends FlatSpec with Matchers with PropertyChecks {
   
   it should "report the correct reverse angle" in {
     forAll(coords, coords) { (c0, c1) =>
-      val reverseAngle = Angle.normalize(c0.angleTo(c1) + math.Pi)
+      val reverseAngle = Angles.normalizePi(c0.angleTo(c1) + math.Pi)
       c1.angleTo(c0) should be (reverseAngle +- Tol)
     }
   }

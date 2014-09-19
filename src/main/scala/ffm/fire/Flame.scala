@@ -5,14 +5,15 @@ import scala.collection.mutable.ArrayBuffer
 import ffm.ModelSettings
 import ffm.geometry._
 import ffm.numerics.Numerics
+import ffm.numerics.Numerics._
 
 
-class Flame(flen: Double, val angle: Double, val origin: Coord, val depthIgnited: Double, val deltaTemperature: Double) {
+class Flame(val flameLength: Double, val angle: Double, val origin: Coord, val depthIgnited: Double, val deltaTemperature: Double) {
 
-  val flameLength = flen.max(depthIgnited)  
-  
   // Unlike the original C++ code we don't allow null flames
   require( flameLength > 0, "flame length must be greater than 0")
+  require( depthIgnited > 0, "depth Ignited must be greater than 0")
+  require( flameLength > depthIgnited, "flame length must be greater than depth ignited")
 
   val tip = origin.toBearing(angle, flameLength)
 
@@ -33,13 +34,14 @@ class Flame(flen: Double, val angle: Double, val origin: Coord, val depthIgnited
    * See also Weber et al as referenced in thesis.
    */
   def plumeDeltaTemperature(dist: Double): Double = {
-    // Helper method
     def calculatedTemp = {
-      val a = -1.0 / (flameLength * (flameLength - depthIgnited))
+      val dlen = flameLength - depthIgnited
+      val a = -1.0 / (2.0 * flameLength * dlen)
+      
       if (dist <= flameLength)
         deltaTemperature * math.exp(a * (dist - depthIgnited) * (dist - depthIgnited))
       else
-        deltaTemperature * flameLength / dist * math.exp(a * (flameLength - depthIgnited) * (flameLength - depthIgnited))
+        deltaTemperature * flameLength / dist * math.exp(a * dlen * dlen)
     }
     
     if (dist <= depthIgnited) deltaTemperature
@@ -49,8 +51,6 @@ class Flame(flen: Double, val angle: Double, val origin: Coord, val depthIgnited
   /**
    * Determines the temperature at some distance along the plume from the origin of 
    * this flame with the given ambient temperature.
-   * 
-   * Returns None if this flame is not burning (ie. isNull is true).
    */
   def plumeTemperature(dist: Double, ambientTemp: Double): Double =
     plumeDeltaTemperature(dist) + ambientTemp
@@ -64,27 +64,29 @@ class Flame(flen: Double, val angle: Double, val origin: Coord, val depthIgnited
   def distanceForTemperature(targetTemp: Double, ambientTemp: Double): Option[Double] = {
     if (Numerics.gt(targetTemp, deltaTemperature + ambientTemp))
       None
-    else {
-      val rtnVal =
-        if (Numerics.almostEq(targetTemp, deltaTemperature + ambientTemp))
+    else
+      Some(
+        if (targetTemp.almostEq(deltaTemperature + ambientTemp))
           depthIgnited
         else {
           val deltaT = targetTemp - ambientTemp
-          val a = -1.0 / (2 * flameLength * (flameLength - depthIgnited))
-          val deltaLen = flameLength - depthIgnited
+          val dlen = flameLength - depthIgnited
+          val a = -1.0 / (2 * flameLength * dlen)
 
-          if (Numerics.gt(deltaT, deltaTemperature * math.exp(a * deltaLen * deltaLen)))
+          if (Numerics.gt(deltaT, deltaTemperature * math.exp(a * dlen * dlen)))
             math.sqrt(math.log(deltaT / deltaTemperature) / a) + depthIgnited
           else
-            deltaTemperature * flameLength / deltaT * math.exp(a * deltaLen * deltaLen)
+            deltaTemperature * flameLength / deltaT * math.exp(a * dlen * dlen)
         }
-      Some(rtnVal)
-    }
+      )
   }
 
 }
 
 
+/**
+ * Companion object to the Flame class
+ */
 object Flame {
   /**
    * Creates a new flame.
@@ -176,7 +178,7 @@ object Flame {
    * Use Newton-Cotes quadrature of arcsin(sin(theta_g)*cos(theta)) for theta in [0,PI/2]
    * because of symmetry. Increase n for more accurate result (20 seems adequate).
    */
-  def effectiveSlope(slope: Double): Double = {
+  private def effectiveSlope(slope: Double): Double = {
     val n = 20
     val h = 0.5 * math.Pi / n
     val s = math.sin(slope)

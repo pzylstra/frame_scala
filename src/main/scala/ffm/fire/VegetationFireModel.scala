@@ -13,7 +13,7 @@ import ffm.geometry.Coord
 object VegetationFireModel {
   
   /**
-   * FIXME - return a result
+   * FIXME - return a result !
    */
   def ignitionRun(site: Site, includeCanopy: Boolean, fireLineLength: Double) {
     val surfaceWindSpeed = VegetationWindModel.surfaceWindSpeed(site, includeCanopy)

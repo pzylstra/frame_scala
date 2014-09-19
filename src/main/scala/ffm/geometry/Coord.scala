@@ -1,13 +1,13 @@
 package ffm.geometry
 
-import com.vividsolutions.jts.{geom => JTS}
+import com.vividsolutions.jts.geom.{Coordinate => JTSCoordinate}
 
 /**
  * An immutable wrapper around the JTS Coordinate class.
  */
 case class Coord(val x: Double, val y: Double) {
   
-  private val jtsCoord: JTS.Coordinate = new JTS.Coordinate(x, y)
+  private val jtsCoord: JTSCoordinate = new JTSCoordinate(x, y)
   
   /**
    * Returns a new Coord offset from this Coord by dx, dy.

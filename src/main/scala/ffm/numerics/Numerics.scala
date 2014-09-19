@@ -6,6 +6,9 @@ import scala.language.implicitConversions
  * Provides methods for comparison of Double values within a specified 
  * tolerance.
  * 
+ * The default tolerance is suitable for the range of expected values in 
+ * the model (e.g. +-1000).
+ * 
  * Examples:
  * {{{
  * import ffm.numerics.Numerics._
@@ -28,6 +31,7 @@ import scala.language.implicitConversions
  * 
  * almostEq(a, b)    // returns true
  * almostZero(0.05)  // true
+ * }}}
  */
 object Numerics {
   
@@ -35,15 +39,17 @@ object Numerics {
    * Used to specify the comparison tolerance used by 
    * [Numerics.almostEq]
    */
-  case class DoubleTolerance(tol: Double)
+  case class DoubleTolerance(value: Double) {
+    require(value > 0.0, "tolerance value must be > 0.0")
+  }
 
   /**
-   * Default comparison tolerance (1.0e-9).
+   * Default comparison tolerance (1.0e-8).
    */
-  implicit val Tol = DoubleTolerance(1.0e-9)
+  implicit val DefaultTol = DoubleTolerance(1.0e-8)
   
   def almostEq(a: Double, b: Double)(implicit tolerance: DoubleTolerance) =
-    math.abs(a - b) <= tolerance.tol
+    math.abs(a - b) <= tolerance.value
 
   def gt(a: Double, b: Double) =
     !leq(a, b)
@@ -62,4 +68,25 @@ object Numerics {
     
   def clampToZero(a: Double) =
     if (almostZero(a)) 0.0 else a
+    
+  /**
+   * Provides an implicit conversion from Double to Numerics.DoubleEx
+   * which adds `almostEq` and `almostZero` methods.
+   * 
+   * Example:
+   * {{{
+   * import ffm.numerics.Numerics._
+   * 
+   * val d1 = 1.0
+   * val d2 = d1 + 1e-10
+   * 
+   * d1 == d2         // false
+   * d1.almostEq(d2)  // true
+   * }}}
+   */
+  implicit class DoubleEx(d: Double) {
+  
+      def almostEq(that: Double) = Numerics.almostEq(d, that)
+      def almostZero = Numerics.almostZero(d)
+  }  
 }

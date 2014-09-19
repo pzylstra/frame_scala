@@ -1,6 +1,6 @@
 package ffm.geometry
 
-import com.vividsolutions.jts.algorithm.{Angle, CGAlgorithms}
+import com.vividsolutions.jts.algorithm.CGAlgorithms
 import com.vividsolutions.jts.{geom => JTS}
 
 import ffm.numerics.Numerics
@@ -15,7 +15,7 @@ class Line private(c: Coord, theta: Double) {
   val anchor = c
   
   /** The line angle normalized to (-Pi, Pi]. */
-  val angle = Angle.normalize(theta)
+  val angle = Angles.normalizePi(theta)
   
   // arbitrary second point on line
   private val secondCoord = {
@@ -83,7 +83,7 @@ class Line private(c: Coord, theta: Double) {
       case None => None
       case Some(coord) =>
         val theta = ray.origin.angleTo(coord)
-        val diff = Angle.diff(theta, ray.angle)
+        val diff = Angles.diff(theta, ray.angle)
         if ( Numerics.almostZero(diff)) Some(coord)
         else None
     }

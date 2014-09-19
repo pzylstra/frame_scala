@@ -87,7 +87,7 @@ object ModelSettings {
    * Minimum temperature for canopy heating (degrees Celsius).
    *
    * If the canopy is not heated to this value by pre-heating flames then flame
-   * residence time is reduced to [[ModelSettings.reducedCanopyFlameResidenceTime]].
+   * residence time is reduced to [[ModelSettings.ReducedCanopyFlameResidenceTime]].
    */
   val MinTempForCanopyHeating: Double = 100
 
@@ -103,7 +103,7 @@ object ModelSettings {
   /**
    * Reduced canopy flame residence time (sec).
    *
-   * If the canopy is not heated to [[ModelSettings.minTempForCanopyHeating]] by pre-heating
+   * If the canopy is not heated to [[ModelSettings.MinTempForCanopyHeating]] by pre-heating
    * flames then flame residence time is reduced.
    */
   val ReducedCanopyFlameResidenceTime: Double = 1
