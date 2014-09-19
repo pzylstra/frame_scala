@@ -9,7 +9,7 @@ import ffm.numerics.Numerics
 import ffm.util.Options
 
 
-object IgnitionRunModel {
+object IgnitionPathModel {
 
   // Private constants to indicate run type
   private val PlantRun = 1

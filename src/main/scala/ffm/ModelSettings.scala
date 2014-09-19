@@ -61,26 +61,20 @@ object ModelSettings {
   val MaxIgnitionTimeSteps: Int = (MaxIgnitionTime / ComputationTimeInterval + 0.5).toInt
 
   /**
-   * Minimum separation from slope when computing flame angles
+   * Minimum separation from slope when computing flame angles (radians).
    *
    * When computing flame angles the flame cannot adhere to the slope more
    * closely than this setting will allow.
-   *
-   * Units are radians.
    */
   val MinFlameSepFromSlope: Double = 0.01745
 
   /**
-   * Minimum fuel load for a surface backing fire.
-   * 
-   * Units are kg / m^2
+   * Minimum fuel load for a surface backing fire (kg / m^2).
    */
   val MinFuelLoadForSurfaceBackingFire: Double = 0.4
 
   /**
-   * Minimum fuel load for a surface head fire.
-   * 
-   * Units are kg / m^2
+   * Minimum fuel load for a surface head fire (kg / m^2).
    */  
   val MinFuelLoadForSurfaceHeadFire = 0.3
   
@@ -90,12 +84,10 @@ object ModelSettings {
   val MinHeightForWindModel: Double = 0.1
 
   /**
-   * Minimum temperature for canopy heating.
+   * Minimum temperature for canopy heating (degrees Celsius).
    *
    * If the canopy is not heated to this value by pre-heating flames then flame
    * residence time is reduced to [[ModelSettings.reducedCanopyFlameResidenceTime]].
-   *
-   * Units degrees Celsius.
    */
   val MinTempForCanopyHeating: Double = 100
 
@@ -109,13 +101,20 @@ object ModelSettings {
   val NumPenetrationSteps: Int = 10
 
   /**
-   * Reduced canopy flame residence time.
+   * Reduced canopy flame residence time (sec).
    *
    * If the canopy is not heated to [[ModelSettings.minTempForCanopyHeating]] by pre-heating
    * flames then flame residence time is reduced.
-   *
-   * Units are seconds.
    */
   val ReducedCanopyFlameResidenceTime: Double = 1
+  
+  /**
+   * Threshold wind speed for flame angles to be computed using wind effect (m/s).
+   * 
+   * If the absolute value of the wind speed is less than this threshold
+   * flame angles are computed using the slope effect model, otherwise they are 
+   * computed using the wind effect model
+   */
+  val SlopeDominanceWindThreshold: Double = 0.8333
 
 }

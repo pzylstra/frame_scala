@@ -4,7 +4,7 @@ import ffm.BasicSpec
 import ffm.forest._
 import ffm.geometry.CrownPoly
 
-class IgnitionRunModelSpec extends BasicSpec {
+class IgnitionPathModelSpec extends BasicSpec {
 
   val poa = Species(
     name = "Poa sieberiana",
@@ -39,7 +39,7 @@ class IgnitionRunModelSpec extends BasicSpec {
     /* 
      * 
      * FIXME !
-    IgnitionRunModel.plantFlameRun(site, Stratum.Surface, poa, *** further arguments ***)  
+    IgnitionPathModel.plantFlameRun(site, Stratum.Surface, poa, *** further arguments ***)  
     * 
     */  
   }

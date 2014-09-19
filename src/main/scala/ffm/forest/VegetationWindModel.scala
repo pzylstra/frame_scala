@@ -21,6 +21,23 @@ object VegetationWindModel {
     else site.windSpeed / windSpeedAtHeight(1.5, site, includeCanopy = true)
 
   /**
+   * Calculates surface wind speed.
+   * 
+   * Takes into account whether the site contains a near-surface stratum or not.
+   */
+  def surfaceWindSpeed(site: Site, includeCanopy: Boolean): Double = {
+    import StratumLevel._
+
+    val surfaceHeight =
+      if (site.strataByLevel.isDefinedAt(NearSurface))
+        math.max(ModelSettings.MinHeightForWindModel, site.strataByLevel(NearSurface).averageMidHeight)
+      else
+        ModelSettings.MinHeightForWindModel
+
+    windSpeedAtHeight(surfaceHeight, site, includeCanopy)
+  }
+  
+  /**
    * Finds the wind speed at the given height within a site considering the damping effect of 
    * the site's vegetation layers.
    * 

@@ -2,6 +2,7 @@ package ffm.forest
 
 import ffm.geometry.Coord
 import ffm.numerics.RoundedDoubleSortedSet
+import ffm.ModelSettings
 
 /**
  * Represents a site in the modelling landscape having:
@@ -17,6 +18,10 @@ trait Site {
   def surface: Surface
   def strata: Vector[Stratum]
   def weather: WeatherModel
+  
+  /** Strata index by StatumLevel. */
+  val strataByLevel: Map[StratumLevel, Stratum] =
+    Map() ++ (strata map (s => (s.level -> s) ))
 
   /** Gets the slope (shortcut for site.surface.slope). */
   def slope = surface.slope
@@ -26,7 +31,8 @@ trait Site {
 
   /** Gets the incident windSpeed (shortcut for site.weather.windSpeed). */
   def windSpeed = weather.windSpeed
-
+  
+  
   /**
    * Identifies height-delimited layers of uniform vegetation from this site's strata.
    *
@@ -84,7 +90,12 @@ trait Site {
       layers
     }
   }
-
+  
+  
+  /**
+   * Tests if there exists a vertical association between two strata.
+   */
+  def isVerticalAssociation(level1: StratumLevel, level2: StratumLevel): Boolean
 }
 
 /**

@@ -2,35 +2,19 @@ package ffm.forest
 
 import ffm.geometry.CrownPoly
 
-sealed trait StratumLevel
-object StratumLevel {
-  case object Surface extends StratumLevel
-  case object NearSurface extends StratumLevel
-  case object Elevated extends StratumLevel
-  case object MidStorey extends StratumLevel
-  case object Canopy extends StratumLevel  
-
-  /**
-   * Retrieve a StratumLevel by name.
-   * 
-   * Ignores case and any surrounding or embedded spaces.
-   */
-  def apply(name: String): StratumLevel = name.replaceAll("\\s+", "").toLowerCase() match {
-    case "surface" => Surface
-    case "nearsurface" => NearSurface
-    case "elevated" => Elevated
-    case "midstorey" => MidStorey
-    case "canopy" => Canopy
-    case s => throw new IllegalArgumentException("Not a valid stratum level name: " + s)
-  }}
 
 class Stratum private (
   val level: StratumLevel,
   speciesComps: Vector[SpeciesComposition],
-  val plantSep: Double) {
+  val plantSep: Double) 
+  
+  extends Ordered[Stratum] {
   
   require(!speciesComps.isEmpty, "one or more SpeciesCompositions required")
   require(plantSep >= 0, "plant separation must be >= 0")
+  
+  /** Compare this stratum with another on the basis of their levels. */
+  override def compare(that: Stratum): Int = this.level.compare(that.level)
   
   /**
    * Species compositions with values normalized to proportion within stratum.

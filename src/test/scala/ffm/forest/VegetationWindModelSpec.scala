@@ -13,7 +13,7 @@ class VegetationWindModelSpec extends MockSpec {
 
   "VegetationWindModel" should "calculate the correct wind reduction factor" in {
     
-    // lookup of filename -> expected WRF
+    // lookup of filename -> expected WRF (from C++ program results)
     val referenceValues = Map(
       "1.txt" -> 2.07,
       "2.txt" -> 5.46,
