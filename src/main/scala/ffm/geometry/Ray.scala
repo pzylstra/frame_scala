@@ -5,13 +5,13 @@ import ffm.numerics.Numerics._
 /**
  * Represents a semi-infinite line with a given origin and angle.
  */
-class Ray(val origin: Coord, theta: Double) {
+class Ray private(val origin: Coord, theta: Double) {
   
   /**
    * Ray angle in the range [0, 2Pi).
    */
   val angle = Angles.normalizeTwoPi(theta)
-
+  
   /**
    * Returns `true` if the given Ray has (almost) the same origin and angle
    * as this Ray.
@@ -24,6 +24,7 @@ class Ray(val origin: Coord, theta: Double) {
 }
 
 object Ray {
+  /** Creates a Ray from origin with the given angle. */
   def apply(origin: Coord, angle: Double): Ray =
     new Ray(origin, angle)
 }

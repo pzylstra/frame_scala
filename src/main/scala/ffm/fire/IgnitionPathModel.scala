@@ -1,34 +1,20 @@
 package ffm.fire
 
 import scala.collection.mutable.ArrayBuffer
-
 import ffm.ModelSettings
-import ffm.forest.{ Site, Species, Stratum, StratumLevel }
-import ffm.geometry._
-import ffm.numerics.Numerics
-import ffm.util.Options
+import ffm.forest.Site
+import ffm.forest.Species
+import ffm.forest.StratumLevel
+import ffm.geometry.Coord
+import ffm.geometry.Line
+import ffm.geometry.Ray
+import ffm.forest.VegetationWindModel
+import ffm.forest.Stratum
 
 
-object IgnitionPathModel {
-
-  sealed trait RunType
-  case object PlantRun extends RunType
-  case object StratumRun extends RunType
-
-  /**
-   * Models an ignition path for a plant canopy.
-   */
-  def plantFlamePath = generatePath(PlantRun) _
-
-  /**
-   * Models an ignition path for a stratum pseudo-canopy.
-   */
-  def stratumFlamePath = generatePath(StratumRun) _
-
-  /**
-   * Models an ignition path for a plant canopy or stratum pseudo-canopy.
-   */
-  def generatePath(runType: RunType)(
+trait IgnitionPathModel {
+  
+  def generatePath(runType: IgnitionRunType)(
     site: Site,
     stratumLevel: StratumLevel,
     species: Species,
@@ -36,6 +22,34 @@ object IgnitionPathModel {
     preHeatingFlames: Vector[PreHeatingFlame],
     preHeatingEndTime: Double,
     canopyHeatingDistance: Double,
+    stratumWindSpeed: Double,
+    initialPoint: Coord): IgnitionResult
+}
+
+
+sealed trait IgnitionRunType
+object IgnitionRunType {
+  case object PlantRun extends IgnitionRunType
+  case object StratumRun extends IgnitionRunType  
+}
+
+
+class SingleSiteIgnitionPathModel extends IgnitionPathModel {
+  
+  import IgnitionRunType._
+
+  /**
+   * Models an ignition path for a plant canopy or stratum pseudo-canopy.
+   */
+  def generatePath(runType: IgnitionRunType)(
+    site: Site,
+    stratumLevel: StratumLevel,
+    species: Species,
+    incidentFlames: Vector[Flame],
+    preHeatingFlames: Vector[PreHeatingFlame],
+    preHeatingEndTime: Double,
+    canopyHeatingDistance: Double,
+    stratumWindSpeed: Double,
     initialPoint: Coord): IgnitionResult = {
 
     // Array buffer to accumulate plant flames as ignition proceeds
@@ -290,7 +304,7 @@ object IgnitionPathModel {
 
     for (timeStep <- 1 to Int.MaxValue if !isFinished && timeSinceIgnition(timeStep) < ModelSettings.MaxIgnitionTimeSteps) {
 
-      val modifiedWindSpeed =
+      val modifiedWindSpeed = {
         if (runType == StratumRun && igResult.hasIgnition) {
           val n = igResult.segments.size
           val xstart =
@@ -301,11 +315,12 @@ object IgnitionPathModel {
             if (n == 1) igResult.segments(0).end.x
             else igResult.segments(n - 1).end.x
 
-          site.windSpeed - math.max(0.0, xend - xstart) / ModelSettings.ComputationTimeInterval
+          stratumWindSpeed - math.max(0.0, xend - xstart) / ModelSettings.ComputationTimeInterval
 
         } else {
-          site.windSpeed
+          stratumWindSpeed
         }
+      }
 
       // Plant flame from previous time step
       val plantFlame: Option[Flame] = plantFlames.lastOption

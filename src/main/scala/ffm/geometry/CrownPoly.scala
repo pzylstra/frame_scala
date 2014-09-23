@@ -5,18 +5,24 @@ import ffm.numerics.Numerics
 
 /**
  * A polygon with six vertices representing a plant crown.
- * 
+ *
  * Uses JTS classes for the geometry internals but all of the mutable
  * JTS stuff is hidden from the clients of this class.
  */
-class CrownPoly private (jtsPoly: JTS.Polygon) {
-  
+class CrownPoly private (val hc: Double, val he: Double, val ht: Double, val hp: Double, w: Double) {
+  require(hp > hc, s"Invalid dimensions: hp ($hp) should be greater than hc ($hc)")
+  require(ht >= he, s"Invalid dimensions: ht ($ht) should be greater than he ($he)")
+  require(w > 0.0, s"Invalid dimensions: width ($w) should be positive")
+
   import ffm.geometry.JTSImplicits._
+
+  // JTS Polygon to which we delegate geometric computations
+  private val jtsPoly = createPoly()
 
   // bounding rectangle of the crown aligned with coordinate axes
   private val env = jtsPoly.getEnvelopeInternal()
   
-  val width: Double = env.getWidth
+  val width: Double = w
   val height: Double = env.getHeight
 
   val top: Double = env.getMaxY
@@ -71,31 +77,53 @@ class CrownPoly private (jtsPoly: JTS.Polygon) {
       Segment(jtsCoords.head, jtsCoords.last)
     } )
   }
-}
 
-object CrownPoly {
-  private val factory = new JTS.GeometryFactory
+  /**
+   * Returns the The point in the base of the Poly with given x-value
+  \param x
+  \return The lowest (ie least y value) point in the Poly that has x-coordinate equal to x.
 
-  import ffm.geometry.JTSImplicits._
+  If x is greater than right() then the function returns the lowest y-value with x == right(). Similarly if 
+  x is less than left() then the function returns the least y-value with x == left().
+*/
+  def pointInBase(x: Double): Coord = {
+    if (Numerics.leq(x, left))  // treat as left => vertex 'd'
+      Coord(left, he)
+    else if (Numerics.geq(x, right))  // treat as right => vertex 'e'
+      Coord(right, he)
+    else if (Numerics.almostZero(x))  // centre => vertex 'f'
+      Coord(0, hc)
+    else {  // intermediate x position => find point by intersection
+      val verticalRay = Ray(Coord(x, bottom - 1.0), angle=math.Pi / 2)
+      val crossingSegment = intersection(verticalRay).get
+      Coord(x, crossingSegment.start.y)
+    }
+  }
   
   /**
-   * Creates a new CrownPoly object from the given height values and width.
+   * Creates the underlying JTS Polygon object.
    */
-  def apply(hc: Double, he: Double, ht: Double, hp: Double, w: Double): CrownPoly = {
-    require(hp > hc, s"Invalid dimensions: hp ($hp) should be greater than hc ($hc)")
-    require(ht >= he, s"Invalid dimensions: ht ($ht) should be greater than he ($he)")
-    require(w > 0.0, s"Invalid dimensions: w ($w) should be positive")
-    
+  private def createPoly(): JTS.Polygon = {
     // set up x,y pairs for polygon coords
     val xys = Array( (0.0, hc), (w/2, he), (w/2, ht), (0.0, hp), (-w/2, ht), (-w/2, he), (0.0, hc) )
     
     // create Coords (implicitly JTS Coordinates) and build the polygon
     val coords = for ((x, y) <- xys) yield Coord(x, y)
-    val jtsPoly = factory.createPolygon(coords)
+    val poly = CrownPoly.factory.createPolygon(coords)
     
-    // ensure the polygon is in normal form
-    jtsPoly.normalize()
-    
-    new CrownPoly(jtsPoly)
+    // ensure the polygon is in normal form, then return it
+    poly.normalize()
+    poly
+  }
+}
+
+object CrownPoly {
+  private val factory = new JTS.GeometryFactory
+
+  /**
+   * Creates a new CrownPoly object from the given height values and width.
+   */
+  def apply(hc: Double, he: Double, ht: Double, hp: Double, w: Double): CrownPoly = {
+    new CrownPoly(hc, he, ht, hp, w)
   }
 }

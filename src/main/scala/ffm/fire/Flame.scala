@@ -19,12 +19,15 @@ class Flame(val flameLength: Double, val angle: Double, val origin: Coord, val d
 
   val plume = Ray(origin, angle)
   
+  /** Creates a copy of this flame. */
+  def copy = new Flame(flameLength, angle, origin, depthIgnited, deltaTemperature)
+  
   /**
-   * Returns a flame with the same properties as this one but at a
+   * Returns a flame with the same attributes as this one but at a
    * new origin coordinate.
    */
   def toOrigin(newOrigin: Coord) = 
-    Flame(flameLength, angle, newOrigin, depthIgnited, deltaTemperature)
+    new Flame(flameLength, angle, newOrigin, depthIgnited, deltaTemperature)
 
   /**
    * Determines the temperature at some distance along the plume from the origin of 

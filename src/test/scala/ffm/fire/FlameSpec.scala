@@ -1,39 +1,15 @@
 package ffm.fire
 
 import org.scalacheck.Gen
-import org.scalatest.OptionValues
-import org.scalatest.prop.PropertyChecks
 
-import ffm.BasicSpec
 import ffm.geometry.Coord
 import ffm.geometry.Ray
 
-class FlameSpec extends BasicSpec with PropertyChecks with OptionValues {
+/**
+ * Tets for Flame class methods.
+ */
+class FlameSpec extends FlameTestBase {
 
-  /*
-   * Generators for ordinate values, Coords, angles etc.
-   */
-  val XLim = 10.0
-  val YLim = 10.0
-  
-  val validXY: Gen[(Double, Double)] =
-    for {
-      x <- Gen.choose(-XLim, XLim)
-      y <- Gen.choose(-YLim, YLim)
-    } yield (x, y)
-  
-  val coords: Gen[Coord] = for ((x, y) <- validXY) yield Coord(x, y)
-  
-  val angles: Gen[Double] = Gen.choose(-math.Pi, math.Pi)
-  
-  val distances: Gen[Double] = Gen.choose(0.0, XLim)
-  
-  /*
-   * General tolerance for +- comparisons
-   */
-  val Tol = ffm.numerics.Numerics.DefaultTol.value
-
-  
   "A Flame" should "ensure that length > 0" in {
     intercept [IllegalArgumentException] {
       Flame(length=0.0, angle=1.0, origin=Coord.Origin, depthIgnited = 0.0, deltaTemperature=300.0)

@@ -97,7 +97,7 @@ trait Site {
    * 
    * FIXME - needs an implementation
    */
-  def isVerticalAssociation(level1: StratumLevel, level2: StratumLevel): Boolean = false
+  def isVerticalAssociation(level1: Stratum, level2: Stratum): Boolean = ???
 }
 
 /**
