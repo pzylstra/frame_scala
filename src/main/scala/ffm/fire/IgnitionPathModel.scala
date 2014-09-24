@@ -302,8 +302,10 @@ class SingleSiteIgnitionPathModel extends IgnitionPathModel {
       case Some(t) => curTime - t
     }
 
-    for (timeStep <- 1 to Int.MaxValue if !isFinished && timeSinceIgnition(timeStep) < ModelSettings.MaxIgnitionTimeSteps) {
-
+    var timeStep = 0
+    while (!isFinished && timeSinceIgnition(timeStep) < ModelSettings.MaxIgnitionTimeSteps) {
+      timeStep += 1
+      
       val modifiedWindSpeed = {
         if (runType == StratumRun && igResult.hasIgnition) {
           val n = igResult.segments.size
@@ -337,7 +339,10 @@ class SingleSiteIgnitionPathModel extends IgnitionPathModel {
         val maxPlantPathLen = calculateMaxPlantPathLength(plantFlame, curPoint)
         val maxIncidentPathLen = calculateMaxIncidentPathLength(incidentFlame, curPoint)
 
-        if (maxPlantPathLen > 0 || maxIncidentPathLen > 0) {
+        if (!(maxPlantPathLen > 0 || maxIncidentPathLen > 0)) {
+          isFinished = true
+          
+        } else {
           // Take path length and angle from whichever flame gave the longest path length
           val (pathLength, pathAngle) =
             if (maxPlantPathLen > maxIncidentPathLen) (maxPlantPathLen, plantFlame.get.angle)

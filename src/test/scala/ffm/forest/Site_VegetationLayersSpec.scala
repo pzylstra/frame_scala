@@ -49,11 +49,12 @@ class Site_VegetationLayersSpec extends MockSpec {
 
   val weather = ConstantWeatherModel(temperature = 20.0, windSpeed = 30.0)
 
-  val site = SingleSite(surface, Vector(midStorey, canopy), weather)
+  val vegetation = Vegetation(strata = Vector(midStorey, canopy), overlaps = Vector())
+  val site = SingleSite(surface, vegetation, weather)
   
 
   "A Site" should "identify the correct vegetation layers" in {
-    val layers = site.vegetationLayers(includeCanopy = true)
+    val layers = site.vegetation.layers(includeCanopy = true)
 
     // We expect three layers with veg and one empty layer at the bottom
     val expectedLayers = Vector(
@@ -66,13 +67,13 @@ class Site_VegetationLayersSpec extends MockSpec {
   }
 
   it should "always identify the lowest layer as starting from ground level" in {
-    val layers = site.vegetationLayers(includeCanopy = true)
+    val layers = site.vegetation.layers(includeCanopy = true)
 
     layers.last.lower should be(0.0)
   }
 
   it should "sort vegetation layers in descending order of height" in {
-    val layers = site.vegetationLayers(includeCanopy = true)
+    val layers = site.vegetation.layers(includeCanopy = true)
 
     val upperHts = layers map (_.upper)
     for ((h, hnext) <- upperHts.pairs) h should be > hnext
@@ -82,7 +83,7 @@ class Site_VegetationLayersSpec extends MockSpec {
   }
 
   it should "omit the canopy when requested" in {
-    val layers = site.vegetationLayers(includeCanopy = false)
+    val layers = site.vegetation.layers(includeCanopy = false)
     
     for (layer <- layers) 
       layer.levels should not contain Canopy 

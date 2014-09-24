@@ -29,8 +29,8 @@ object VegetationWindModel {
     import StratumLevel._
 
     val surfaceHeight =
-      if (site.strataByLevel.isDefinedAt(NearSurface))
-        math.max(ModelSettings.MinHeightForWindModel, site.strataByLevel(NearSurface).averageMidHeight)
+      if (site.vegetation.strataByLevel.isDefinedAt(NearSurface))
+        math.max(ModelSettings.MinHeightForWindModel, site.vegetation.strataByLevel(NearSurface).averageMidHeight)
       else
         ModelSettings.MinHeightForWindModel
 
@@ -46,10 +46,10 @@ object VegetationWindModel {
    */
   def windSpeedAtHeight(height: Double, site: Site, includeCanopy: Boolean): Double = {
     if (site.windSpeed <= 0) 0.0
-    else if (site.strata.isEmpty) site.windSpeed
+    else if (site.vegetation.strata.isEmpty) site.windSpeed
     else {
       val workingHeight = math.max(height, ModelSettings.MinHeightForWindModel)
-      val layers = site.vegetationLayers(includeCanopy)
+      val layers = site.vegetation.layers(includeCanopy)
       
       val topLayerHeight = (layers.map(_.upper)).max
       
@@ -66,7 +66,7 @@ object VegetationWindModel {
 
     // Map of leaf area index values indexed by stratum level.
     // We might not need all of them but it is quick and easy to get them.
-    val levelLAIs = Map() ++ site.strata.map( stratum => (stratum.level -> stratum.leafAreaIndex))
+    val levelLAIs = Map() ++ site.vegetation.strata.map( stratum => (stratum.level -> stratum.leafAreaIndex))
     
     // Function to iterate through the layers, progressively modifying the wind speed
     // until the layer containing the target height is reached.

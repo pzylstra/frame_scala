@@ -32,7 +32,11 @@ class IgnitionPathModelSpec extends BasicSpec {
 
   val weather = ConstantWeatherModel(temperature=20.0, windSpeed=30.0)
   
-  val site = SingleSite(surface, Vector(Stratum(StratumLevel.Surface, poa, 0.0)), weather)
+  val strata = Vector(Stratum(StratumLevel.Surface, poa, 0.0))
+  
+  val veg = Vegetation(strata, Vector())
+  
+  val site = SingleSite(surface, veg, weather)
   
   "An ignition run" should "do something" in {
     

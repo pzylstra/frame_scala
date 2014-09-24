@@ -12,7 +12,7 @@ class Flame(val flameLength: Double, val angle: Double, val origin: Coord, val d
 
   // Unlike the original C++ code we don't allow null flames
   require( flameLength > 0, "flame length must be greater than 0")
-  require( depthIgnited > 0, "depth Ignited must be greater than 0")
+  require( depthIgnited >= 0, "depth Ignited must be 0 or greater")
   require( flameLength > depthIgnited, "flame length must be greater than depth ignited")
 
   val tip = origin.toBearing(angle, flameLength)

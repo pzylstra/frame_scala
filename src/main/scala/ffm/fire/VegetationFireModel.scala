@@ -55,11 +55,11 @@ class SingleSiteFireModel(pathModel: IgnitionPathModel, site: Site, includeCanop
      * strata overlaps.
      */
     val flameConnections = mutable.Set.empty[StratumLevel]
-
+    
     def isConnected(lower: Stratum, upper: Stratum) =
-      flameConnections.contains(lower.level) || site.isVerticalAssociation(lower, upper)
+      flameConnections.contains(lower.level) || site.vegetation.isVerticalAssociation(lower, upper)
 
-    for (stratum <- site.strata) {
+    for (stratum <- site.vegetation.strata) {
       val incidentFlames = createIncidentFlames(stratum, isConnected(_, stratum), allSpeciesWeightedFlameSeries)
       val stratumWindSpeed = VegetationWindModel.windSpeedAtHeight(stratum.averageMidHeight, site, includeCanopy)
       
@@ -105,7 +105,7 @@ class SingleSiteFireModel(pathModel: IgnitionPathModel, site: Site, includeCanop
        */
       val lowerActiveStrata =
         for {
-          otherStratum <- site.strata
+          otherStratum <- site.vegetation.strata
           if otherStratum < stratum &&
             allFlameSeries.isDefinedAt(otherStratum.level) &&
             isConnected(otherStratum)

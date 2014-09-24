@@ -14,7 +14,7 @@ object SpeciesCompositionFactory {
     item("composition", "composition"),
     item("name", "name"),
     item("live leaf moisture", "liveLeafMoisture"),
-    item("dead leaf moisture", "deadLeafMoisture", optional = true),
+    item("dead leaf moisture", "deadLeafMoisture"),
     item("silica free ash content", "propSilicaFreeAsh", optional = true),
     item("ignition temperature", "ignitionTemp", optional = true),
     item("proportion dead", "propDead"),

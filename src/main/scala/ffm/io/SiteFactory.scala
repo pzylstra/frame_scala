@@ -2,7 +2,7 @@ package ffm.io
 
 import scala.util.Try
 
-import ffm.forest.{Site, SingleSite, Stratum}
+import ffm.forest.{Site, SingleSite, Stratum, Vegetation}
 
 object SingleSiteFactory {
   
@@ -13,7 +13,11 @@ object SingleSiteFactory {
       weatherModel <- ConstantWeatherModelFactory.create(modelDef)
       surface <- SurfaceFactory.create(modelDef)
       strata <- buildStrata(modelDef, fallback)
-    } yield SingleSite(surface=surface, strata=strata.toVector, weather=weatherModel)
+      
+      // FIXME - get overlaps from model def
+      veg <- Try( Vegetation(strata, Vector()) )
+      
+    } yield SingleSite(surface=surface, vegetation=veg, weather=weatherModel)
   }
   
   private def buildStrata(modelDef: ModelDef, fallback: FallbackProvider): Try[List[Stratum]] = {
