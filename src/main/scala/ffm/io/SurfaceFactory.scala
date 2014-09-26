@@ -29,7 +29,8 @@ object SurfaceFactory {
       // input slope is degrees
       slope = deg2rad( vas.dval("slope") ),
       deadFuelMoistureProp = vas.dval("deadFuelMoistureProp"),
-      fuelLoad = vas.dval("fuelLoad"),
+      // input fuel load is tonnes per hectare - convert to kg / sq m
+      fuelLoad = vas.dval("fuelLoad") / 10,  
       meanFuelDiameter = vas.dval("meanFuelDiameter"),
       meanFinenessLeaves = vas.dval("meanFinenessLeaves"))
   }

@@ -16,9 +16,9 @@ class FlameSpec extends FlameTestBase {
     }
   }
   
-  it should "ensure that depth ignited > 0" in {
+  it should "ensure that depth ignited >= 0" in {
     intercept [IllegalArgumentException] {
-      Flame(length=0.1, angle=1.0, origin=Coord.Origin, depthIgnited = 0.0, deltaTemperature=300.0)
+      Flame(length=0.1, angle=1.0, origin=Coord.Origin, depthIgnited = -0.1, deltaTemperature=300.0)
     }
   }
   

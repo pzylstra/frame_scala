@@ -77,8 +77,13 @@ class SingleSiteFireModel(pathModel: IgnitionPathModel, site: Site, includeCanop
             preHeatingEndTime, canopyHeatingDistance, stratumWindSpeed, 
             _: Coord)
         
-        val paths = initialCrownIgnitionPoints(species) map (runFromPoint)    
+        // val paths = initialCrownIgnitionPoints(species) map (runFromPoint)    
+        val paths = List( runFromPoint(Coord(0,0)) )
         
+        println("="*40)
+        println(s"$species $stratum.level")
+        paths foreach { p => println(s"   ${p.segments}")}
+        println
       }
     }
 

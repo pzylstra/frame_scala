@@ -135,10 +135,10 @@ class SingleSiteIgnitionPathModel extends IgnitionPathModel {
 
         if (maxTemp < species.ignitionTemperature)
           false
-        else if (dryingFactor * calculateIDT(maxTemp) > ModelSettings.ComputationTimeInterval)
-          false
-        else
-          true
+        else {
+          val idt = calculateIDT(maxTemp)
+          dryingFactor * idt <= ModelSettings.ComputationTimeInterval
+        }
       }
 
       // Generate test points and return the further ignitable point, or None
@@ -293,9 +293,11 @@ class SingleSiteIgnitionPathModel extends IgnitionPathModel {
     //
     ///////////////////////////////////////////////////////////////////////////
 
+    println(s"=== initialPoint = $initialPoint")
+    
     var curPoint = initialPoint
     var isFinished = false
-    var igResult = IgnitionResult(species, stratumLevel, site)
+    var igResult = IgnitionResult(runType, site, stratumLevel, species)
 
     def timeSinceIgnition(curTime: Int): Int = igResult.ignitionTime match {
       case None => 0
@@ -339,21 +341,22 @@ class SingleSiteIgnitionPathModel extends IgnitionPathModel {
         val maxPlantPathLen = calculateMaxPlantPathLength(plantFlame, curPoint)
         val maxIncidentPathLen = calculateMaxIncidentPathLength(incidentFlame, curPoint)
 
-        if (!(maxPlantPathLen > 0 || maxIncidentPathLen > 0)) {
-          isFinished = true
-          
-        } else {
+        if (maxPlantPathLen > 0 || maxIncidentPathLen > 0 || igResult.hasIgnition) {
           // Take path length and angle from whichever flame gave the longest path length
           val (pathLength, pathAngle) =
             if (maxPlantPathLen > maxIncidentPathLen) (maxPlantPathLen, plantFlame.get.angle)
             else (maxIncidentPathLen, incidentFlame.get.angle)
 
-          val nextPointOp = findNextIgnitionEndPoint(timeStep, incidentFlame, plantFlame, pathLength, pathAngle, curPoint)
+          val nextPointOp = 
+            if (pathLength > 0) findNextIgnitionEndPoint(timeStep, incidentFlame, plantFlame, pathLength, pathAngle, curPoint)
+            else None
           
-          if (nextPointOp.isEmpty) {
-            isFinished = true
-
-          } else {
+          nextPointOp match {
+              case None => println(s"time=$timeStep no ig point")
+              case Some(p) => println(s"time=$timeStep ig point = $p")
+          }
+          
+          if (nextPointOp.isDefined) {
             val nextIgnitablePoint = nextPointOp.get
             
             if (!igResult.hasIgnition) {
@@ -388,6 +391,7 @@ class SingleSiteIgnitionPathModel extends IgnitionPathModel {
 
             if (!isFinished) {
               curPoint = nextIgnitablePoint
+              println(s"** updated curPoint = $curPoint")
             }
           }
         }

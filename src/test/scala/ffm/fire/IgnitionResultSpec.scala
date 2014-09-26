@@ -13,7 +13,7 @@ class IgnitionResultSpec extends FlatSpec with Matchers with MockitoSugar {
   val stratumLevel = StratumLevel.Canopy
   val site = mock[Site]
   
-  val initResult = IgnitionResult(species, stratumLevel, site)
+  val initResult = IgnitionResult(IgnitionRunType.PlantRun, site, stratumLevel, species)
   
   val c0 = Coord.Origin 
   val c1 = Coord(1, 1)

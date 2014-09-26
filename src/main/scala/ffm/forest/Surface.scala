@@ -3,6 +3,19 @@ package ffm.forest
 import ffm.ModelSettings
 import ffm.numerics._
 
+/**
+ * Holds parameters for the site surface and provides methods to calculate
+ * surface fire attributes.
+ * 
+ * TODO - the fire calculations should really be elsewhere leaving this as
+ * a simple data class.
+ * 
+ * @param slope surface slope (radians)
+ * @param deadFuelMoistureProp dead fuel moisture as a proportion
+ * @param fuelLoad fuel load (kg / sq m)
+ * @param meanFuelDiameter (m)
+ * @param meanFinenessLeaves (m)
+ */
 case class Surface(
   slope: Double,
   deadFuelMoistureProp: Double,

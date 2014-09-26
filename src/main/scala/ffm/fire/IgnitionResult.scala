@@ -25,7 +25,7 @@ import ffm.geometry.Coord
  * igResult = igResult.withSegment(3. startCoord, endCoord)
  * }}}
  */
-case class IgnitionResult(species: Species, level: StratumLevel, site: Site,  segments: Vector[IgnitedSegment] = Vector()) {
+case class IgnitionResult(runType: IgnitionRunType, site: Site, level: StratumLevel, species: Species, segments: Vector[IgnitedSegment] = Vector()) {
 
   /**
    * Returns a new result instance with a segment added.
