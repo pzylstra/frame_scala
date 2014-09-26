@@ -12,6 +12,9 @@ import ffm.geometry.Ray
 import ffm.geometry.Line
 import ffm.numerics.Numerics
 
+
+
+
 /**
  * This is for progressive refactoring of the C++ code for computeIgnitionPath
  *
@@ -22,25 +25,31 @@ class SpikeIgnitionPathModel extends IgnitionPathModel {
 
   import IgnitionRunType._
 
-  def generatePath(runType: IgnitionRunType)(
-    site: Site,
-    stratumLevel: StratumLevel,
-    species: Species,
-    incidentFlames: Vector[Flame],
-    preHeatingFlames: Vector[PreHeatingFlame],
-    preHeatingEndTime: Double,
-    canopyHeatingDistance: Double,
-    stratumWindSpeed: Double,
+  def generatePath(
+    runType: IgnitionRunType,
+    context: IgnitionContext,
     initialPoint: Coord): IgnitionResult = {
 
     println("*"*20)
     println(s"in generatePath with initial point $initialPoint")
     
-    //initialise ignition path 
-    var iPath = IgnitionResult(runType, site, stratumLevel, species)
-
+    val resultBuilder = IgnitionResultBuilder(runType, context)
     
-    /////////////////////////////////////////////////////////////////////////
+    // Define some getters so we don't have to write 'context.' all the time
+    def site = context.site
+    def level = context.stratumLevel
+    def species = context.species
+    def preHeatingFlames = context.preHeatingFlames
+    def incidentFlames = context.incidentFlames
+    def stratumWindSpeed = context.stratumWindSpeed 
+    
+    
+    ///////////////////////////////////////////////////////////////////////////
+    //
+    // Helper functions
+    //
+    ///////////////////////////////////////////////////////////////////////////
+    
     /*
      * Calculates an ignition delay time due to the given flame.
      */
@@ -50,19 +59,23 @@ class SpikeIgnitionPathModel extends IgnitionPathModel {
       calculateIDT(t)
     }
 
-    /////////////////////////////////////////////////////////////////////////
+
     /*
      * Calculates an ignition delay time at the given temperature.
      */
     def calculateIDT(temperature: Double): Double = {
       val idtProp =
-        if (Species.isGrass(species, stratumLevel)) ModelSettings.GrassIDTReduction
+        if (Species.isGrass(species, level)) ModelSettings.GrassIDTReduction
         else 1.0
 
       species.ignitionDelayTime(temperature) * idtProp
     }
 
-    /////////////////////////////////////////////////////////////////////////
+
+    /*
+     * Returns an origin that a flame has if its plume is to pass
+     * through a given point.
+     */
     def locateFlameOrigin(flame: Flame, targetPoint: Coord): Coord = {
       runType match {
         case PlantRun =>
@@ -74,19 +87,19 @@ class SpikeIgnitionPathModel extends IgnitionPathModel {
         case StratumRun => flame.origin
       }
     }
-    /////////////////////////////////////////////////////////////////////////
 
+    
     /*
      * Creates a new plant flame based on the given ignited segment
      */
     def newPlantFlame(modifiedWindSpeed: Double): Flame = {
-      val seg = iPath.segments.last
+      val seg = resultBuilder.segments.last
       val len = seg.start.distanceTo(seg.end)
       assert(len > 0)
 
       val flameLen = species.flameLength(len)
       val deltaT =
-        if (Species.isGrass(species, stratumLevel)) ModelSettings.GrassFlameDeltaTemperature
+        if (Species.isGrass(species, level)) ModelSettings.GrassFlameDeltaTemperature
         else ModelSettings.MainFlameDeltaTemperature
 
       Flame(flameLen,
@@ -102,9 +115,8 @@ class SpikeIgnitionPathModel extends IgnitionPathModel {
       if (preHeatingFlames.isEmpty) preHeatingFlames
       else preHeatingFlames.init
 
-    //initialise a vector to hold plant flames 
-    //this saves having to recompute them from iPath multiple times
     val plantFlames = ArrayBuffer.empty[Flame]
+    val ignitedSegments = ArrayBuffer
 
     var iPt = initialPoint
     var ignition = false
@@ -126,14 +138,14 @@ class SpikeIgnitionPathModel extends IgnitionPathModel {
         //for plant flame, and only if required, we modify wind speed by 
         //reducing it by speed of flame progression
         val modifiedWindSpeed = {
-          if (runType == IgnitionRunType.StratumRun && iPath.hasIgnition) {
-            val sz = iPath.segments.size
+          if (runType == IgnitionRunType.StratumRun && resultBuilder.hasIgnition) {
+            val sz = resultBuilder.segments.size
             if (sz == 1)
               stratumWindSpeed -
-                math.max(0.0, iPath.segments(0).end.x - initialPoint.x) / ModelSettings.ComputationTimeInterval
+                math.max(0.0, resultBuilder.segments(0).end.x - initialPoint.x) / ModelSettings.ComputationTimeInterval
             else
               stratumWindSpeed -
-                math.max(0.0, iPath.segments(sz - 1).end.x - iPath.segments(sz - 2).end.x) / ModelSettings.ComputationTimeInterval
+                math.max(0.0, resultBuilder.segments(sz - 1).end.x - resultBuilder.segments(sz - 2).end.x) / ModelSettings.ComputationTimeInterval
           } else stratumWindSpeed
         }
 
@@ -235,7 +247,7 @@ class SpikeIgnitionPathModel extends IgnitionPathModel {
                   val dryingPerFlame = for {
                     phf <- locatedPreHeatingFlames
                     idt = calculateFlameIDT(phf.flame, locateFlameOrigin(phf.flame, iPt), testPt)
-                    duration = phf.duration(preHeatingEndTime)
+                    duration = phf.duration(context.preHeatingEndTime)
                   } yield math.max(0.0, 1.0 - duration / idt)
 
                   dryingPerFlame.product
@@ -301,7 +313,7 @@ class SpikeIgnitionPathModel extends IgnitionPathModel {
                 /*
                  * FIXME !!! Record pre-ignition data
                  *
-                  iPath.addPreIgnitionData( 
+                  resultBuilder.addPreIgnitionData( 
                       PreIgnitionData::incident(
                               incidentFlame.flameLength(), incidentFlame.depthIgnited(), 
                               distToIncidentFlame, dryingFactor, incidentTemp, idt) )
@@ -329,17 +341,17 @@ class SpikeIgnitionPathModel extends IgnitionPathModel {
         }
 
         if (ignition) {
-          if (!iPath.hasIgnition) {
+          if (!resultBuilder.hasIgnition) {
             println(s"adding first segment time=$timeStep start=$iPt end=$ePt")
-            iPath = iPath.withSegment(timeStep, iPt, ePt)
+            resultBuilder.addSegment(timeStep, iPt, ePt)
             plantFlames += newPlantFlame(modifiedWindSpeed)
 
           } else {
             //compute flame duration and hence start point of new segment
             val flameDuration =
               if (runType == StratumRun &&
-                stratumLevel == StratumLevel.Canopy &&
-                iPt.x > canopyHeatingDistance) {
+                level == StratumLevel.Canopy &&
+                iPt.x > context.canopyHeatingDistance) {
                 // Flame residence time is reduced for stratum ignition in canopy 
                 // if the canopy has not been heated sufficiently.
                 math.ceil(ModelSettings.ReducedCanopyFlameResidenceTime / ModelSettings.ComputationTimeInterval).toInt
@@ -348,16 +360,16 @@ class SpikeIgnitionPathModel extends IgnitionPathModel {
               }
 
             val segStart = {
-              val n = iPath.segments.size
-              if (n < flameDuration) iPath.segments.head.start
-              else iPath.segments(n - flameDuration).end
+              val n = resultBuilder.segments.size
+              if (n < flameDuration) resultBuilder.segments.head.start
+              else resultBuilder.segments(n - flameDuration).end
             }
 
             if (!Numerics.almostZero(maxIncidentPath) || !Numerics.almostZero(maxPlantPath) || segStart.distinctFrom(ePt)) {
               println(s"adding next segment time=$timeStep start=$segStart end=$ePt")
-              iPath = iPath.withSegment(timeStep, segStart, ePt)
+              resultBuilder.addSegment(timeStep, segStart, ePt)
               plantFlames += newPlantFlame(modifiedWindSpeed)
-              // plantFlames.push_back(iPath.flame(modifiedWindSpeed, slope()))
+              // plantFlames.push_back(resultBuilder.flame(modifiedWindSpeed, slope()))
 
             } else {
               println(s"leaving time loop time=$timeStep")
@@ -376,7 +388,7 @@ class SpikeIgnitionPathModel extends IgnitionPathModel {
     println(s"finished ignition path")
     println
 
-    return iPath
+    return resultBuilder.toResult
   }
 
 }

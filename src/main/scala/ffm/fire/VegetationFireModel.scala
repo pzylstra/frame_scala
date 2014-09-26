@@ -71,17 +71,19 @@ class SingleSiteFireModel(pathModel: IgnitionPathModel, site: Site, includeCanop
       for (speciesComp <- stratum.speciesCompositions) {
         val species = speciesComp.species
         
-        val runFromPoint = pathModel.generatePath(IgnitionRunType.PlantRun)(
+        val context = IgnitionContext(
             site, stratum.level, species, 
-            incidentFlames, preHeatingFlames, 
-            preHeatingEndTime, canopyHeatingDistance, stratumWindSpeed, 
-            _: Coord)
+            preHeatingFlames, incidentFlames, 
+            preHeatingEndTime, 
+            canopyHeatingDistance, 
+            stratumWindSpeed)
+            
+        val runFromPoint = pathModel.generatePath(IgnitionRunType.PlantRun, context, _: Coord)
         
-        // val paths = initialCrownIgnitionPoints(species) map (runFromPoint)    
-        val paths = List( runFromPoint(Coord(0,0)) )
+        val paths = initialCrownIgnitionPoints(species) map (runFromPoint)    
         
         println("="*40)
-        println(s"$species $stratum.level")
+        println(s"$species ${stratum.level}")
         paths foreach { p => println(s"   ${p.segments}")}
         println
       }

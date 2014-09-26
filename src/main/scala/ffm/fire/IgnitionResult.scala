@@ -1,55 +1,93 @@
 package ffm.fire
 
-import scala.Vector
-import ffm.forest.Site
-import ffm.forest.Species
-import ffm.forest.Stratum
-import ffm.forest.StratumLevel
-import ffm.geometry.Segment
+import scala.collection.mutable.ArrayBuffer
+
 import ffm.geometry.Coord
 
-/**
- * Stores the results of an ignition run for a given species within stratum with site.
- * 
- * The results include pre-ignition data and ignited segments, if any.
- * 
- * This is a case class with methods supporting builder-style use:
- * {{{
- * // initial empty instance as a var
- * var igResult = IgnitionPath(species, level, site)
- * 
- * // recording ignition time and adding the first ignited segment
- * igResult = igResult.withSegment(2, startCoord, endCoord)
- * 
- * // adding another segment
- * igResult = igResult.withSegment(3. startCoord, endCoord)
- * }}}
- */
-case class IgnitionResult(runType: IgnitionRunType, site: Site, level: StratumLevel, species: Species, segments: Vector[IgnitedSegment] = Vector()) {
-
-  /**
-   * Returns a new result instance with a segment added.
-   * 
-   * Throws an error if ignition time has not been set.
-   */
-  def withSegment(timeStep: Int, start: Coord, end: Coord): IgnitionResult = 
-    if (!hasIgnition || timeStep > lastTimeStep.get)
-      this.copy(segments = segments :+ new IgnitedSegment(timeStep, start, end))
-    else
-      throw new Error(s"Time step for ignited segment ($timeStep) should be later than previous time (${lastTimeStep.get})")
+trait IgnitionResult {
+  def segments: IndexedSeq[IgnitedSegment]
   
   def hasIgnition: Boolean =
     !segments.isEmpty
-    
+
   def ignitionTime: Option[Int] =
     segments.headOption map (_.timeStep)
-  
+
   def lastTimeStep: Option[Int] =
     segments.lastOption map (_.timeStep)
+  
+}
+
+
+/**
+ * Used to progressively record results during an ignition path run and
+ * then provide them as an immutable IgnitionResult object.
+ */
+trait IgnitionResultBuilder extends IgnitionResult {
+  def addSegment(timeStep: Int, start: Coord, end: Coord)
+  def toResult: IgnitionResult
+}
+
+
+/**
+ * Companion object for the IgnitionResultBuilder trait.
+ * 
+ * Usage:
+ * {{{
+ * // At the beginning of an ignition path simulation
+ * val resultBuilder = IgnitionResultBuilder(runType, ignitionContext)
+ * 
+ * // During the simulation
+ * resultBuilder.addSegment(timeStep, startPoint, endPoint)
+ * 
+ * // At the end of the simulation
+ * resultBuilder.toResult
+ * }}}
+ */
+object IgnitionResultBuilder {
+  def apply(runType: IgnitionRunType, context: IgnitionContext): IgnitionResultBuilder =
+    new Builder(runType, context)
+
+  private class Builder(runType: IgnitionRunType, context: IgnitionContext) extends IgnitionResultBuilder {
+    private val segmentBuffer = ArrayBuffer.empty[IgnitedSegment]
     
+    def segments = segmentBuffer.toVector
+
+    def addSegment(timeStep: Int, start: Coord, end: Coord) {
+      if (!hasIgnition || timeStep == lastTimeStep.get + 1)
+        segmentBuffer += new IgnitedSegment(timeStep, start, end)
+      else
+        throw new IllegalArgumentException(
+            s"Time step for ignited segment ($timeStep) should be later than previous time (${lastTimeStep.get})")
+    }
+    
+    def toResult = new BasicIgnitionResult(runType, context, segments)
+
+  }
+  
+  private class BasicIgnitionResult(
+    val runType: IgnitionRunType, 
+    val context: IgnitionContext, 
+    val segments: Vector[IgnitedSegment]) extends IgnitionResult
 }
 
 
-case class IgnitedSegment(timeStep: Int, start: Coord, end: Coord) {
+case class IgnitedSegment(val timeStep: Int, val start: Coord, val end: Coord) {
   val length = start.distanceTo(end)
+
+  override def equals(other: Any) = {
+    other match {
+      case that: ffm.fire.IgnitedSegment => 
+        that.canEqual(IgnitedSegment.this) && 
+        timeStep == that.timeStep && 
+        start.almostEq(that.start) &&
+        end.almostEq(that.end)
+        
+      case _ => false
+    }
+  }
+
 }
+
+
+
