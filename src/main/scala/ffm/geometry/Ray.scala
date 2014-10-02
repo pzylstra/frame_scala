@@ -5,12 +5,23 @@ import ffm.numerics.Numerics._
 /**
  * Represents a semi-infinite line with a given origin and angle.
  */
-class Ray private(val origin: Coord, theta: Double) {
+class Ray private(c0: Coord, theta: Double) {
+  
+  /**
+   * Ray origin coordinate.
+   */
+  val origin = c0
   
   /**
    * Ray angle in the range [0, 2Pi).
    */
   val angle = Angles.normalizeTwoPi(theta)
+
+  /**
+   * Finds the point on this ray at the given distance from the origin.
+   */
+  def atDistance(distance: Double): Coord =
+    origin.toBearing(angle, distance)
   
   /**
    * Returns `true` if the given Ray has (almost) the same origin and angle

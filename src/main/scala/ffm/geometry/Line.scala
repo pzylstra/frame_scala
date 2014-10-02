@@ -12,6 +12,16 @@ import JTSImplicits._
  */
 class Line private(c: Coord, theta: Double) {
   
+  /** 
+   * Creates a line passing through the specified points.
+   * 
+   * The line anchor will be set to the first point.
+   */
+  def this(c0: Coord, c1: Coord) = this(c0, c0.angleTo(c1))
+  
+  /**
+   * An anchor coordinate for this line.
+   */
   val anchor = c
   
   /** The line angle normalized to (-Pi, Pi]. */

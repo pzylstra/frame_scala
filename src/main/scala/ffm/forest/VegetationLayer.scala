@@ -7,7 +7,7 @@ package ffm.forest
  * @param upper upper height (m)
  * @param levels forest strata making up the layer (may be empty)
  */
-case class VegetationLayer(lower: Double, upper: Double, levels: Vector[StratumLevel]) {
+case class VegetationLayer(lower: Double, upper: Double, levels: IndexedSeq[StratumLevel]) {
   
   require(upper > lower, "Layer top must be greater than bottom")
   

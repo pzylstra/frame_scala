@@ -1,11 +1,11 @@
 package ffm.io
 
-import ffm.forest.{ Species, SpeciesComposition }
+import ffm.forest.{ Species, SpeciesComponent }
 import scala.util.Try
 import ffm.geometry.CrownPoly
 import ffm.forest.LeafForm
 
-object SpeciesCompositionFactory {
+object SpeciesComponentFactory {
 
   import ExpressionSyntax._
   import FactoryItem._
@@ -39,14 +39,14 @@ object SpeciesCompositionFactory {
    * @param speciesDef species definition from a [[ModelDef]] object
    * @param fallbacks a FallbackProvider to query for parameters not found in the speciesDef
    */
-  def create(speciesDef: SpeciesDef, fallbacks: FallbackProvider): Try[SpeciesComposition] = {
+  def create(speciesDef: SpeciesDef, fallbacks: FallbackProvider): Try[SpeciesComponent] = {
     for {
       vas <- Try(new ValueAssignments(speciesDef.params, items, fallbacks))
       species <- Try(buildSpecies(vas))
     } yield species
   }
 
-  private def buildSpecies(vas: ValueAssignments): SpeciesComposition = {
+  private def buildSpecies(vas: ValueAssignments): SpeciesComponent = {
 
     val sp = Species(
       name = vas.str("name"),
@@ -65,7 +65,7 @@ object SpeciesCompositionFactory {
       clumpDiameter = vas.dval("clumpDiameter"),
       clumpSeparation = vas.dval("clumpSeparation"))
 
-    SpeciesComposition(sp, composition = vas.dval("composition"))
+    SpeciesComponent(sp, weighting = vas.dval("composition"))
   }
 
 }

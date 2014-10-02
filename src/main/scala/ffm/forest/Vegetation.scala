@@ -6,7 +6,7 @@ import ffm.numerics.RoundedDoubleSortedSet
  * Represents a stand of vegetation, consisting of strata and
  * optional data on their overlaps.
  */
-class Vegetation(val strata: Vector[Stratum], overlaps: Vector[Overlap]) {
+class Vegetation(val strata: IndexedSeq[Stratum], overlaps: IndexedSeq[Overlap]) {
   
   /** Strata indexed by StatumLevel. */
   val strataByLevel: Map[StratumLevel, Stratum] =
@@ -34,7 +34,7 @@ class Vegetation(val strata: Vector[Stratum], overlaps: Vector[Overlap]) {
    *
    * @param includeCanopy whether to include the canopy (if any) in the returned layers.
    */
-  def layers(includeCanopy: Boolean): Vector[VegetationLayer] = {
+  def layers(includeCanopy: Boolean): IndexedSeq[VegetationLayer] = {
     if (strata.isEmpty) Vector.empty
     else {
       /*

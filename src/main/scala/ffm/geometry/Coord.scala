@@ -66,6 +66,20 @@ case class Coord(val x: Double, val y: Double) {
     !almostEq(other)
     
   /**
+   * Returns a new Coord where the ordinates are the sum of
+   * this Coord and the other Coord.
+   */
+  def add(that: Coord): Coord =
+    Coord(x + that.x, y + that.y)
+    
+  /**
+   * Returns a new Coord where the ordinates are the product
+   * of this Coord and the given multiplier. 
+   */
+  def times(mult: Double): Coord =
+    Coord(x * mult, y * mult)
+    
+  /**
    * String representation.
    */
   override def toString =
@@ -77,4 +91,5 @@ object Coord {
   val Origin = Coord(0, 0)
   
 }
+
 

@@ -195,8 +195,8 @@ object Flame {
    * Combines two sets of flames with the angles of the resulting flames
    * calculated using wind speed, slope and fire line length.
    */
-  def combineFlames(flames1: Vector[Flame], flames2: Vector[Flame],
-                    windSpeed: Double, slope: Double, fireLineLength: Double): Vector[Flame] = {
+  def combineFlames(flames1: IndexedSeq[Flame], flames2: IndexedSeq[Flame],
+                    windSpeed: Double, slope: Double, fireLineLength: Double): IndexedSeq[Flame] = {
     
     val combiner = combineFlames(_ :Flame, _ :Flame, windSpeed, slope, fireLineLength)
     combineFlames(flames1, flames2, combiner)
@@ -206,7 +206,7 @@ object Flame {
    * Combines two sets of flames with the angles of the resulting flames
    * calculated as length-weighted averages.
    */
-  def combineFlames(flames1: Vector[Flame], flames2: Vector[Flame]): Vector[Flame] = {
+  def combineFlames(flames1: IndexedSeq[Flame], flames2: IndexedSeq[Flame]): IndexedSeq[Flame] = {
     
     val combiner = combineFlames(_ :Flame, _ :Flame)
     combineFlames(flames1, flames2, combiner)
@@ -215,7 +215,7 @@ object Flame {
   /**
    * Private method to combine two sets of flames using the given combiner function.
    */
-  private def combineFlames(flames1: Vector[Flame], flames2: Vector[Flame], combiner: (Flame, Flame) => Flame): Vector[Flame] = {
+  private def combineFlames(flames1: IndexedSeq[Flame], flames2: IndexedSeq[Flame], combiner: (Flame, Flame) => Flame): IndexedSeq[Flame] = {
     if (flames1.isEmpty) flames2
     else if (flames2.isEmpty) flames1
     else {
@@ -292,6 +292,15 @@ object Flame {
     val initLen = flame1.flameLength + flame2.flameLength - (overlap1 + overlap2) / 2
     
     math.max(initLen, math.max(flame1.flameLength, math.max(flame2.flameLength, flame1.depthIgnited)))
+  }
+
+  /**
+   * Calculates the length of a laterally merged flame in a stratum based on average 
+   * crown width and separation.
+   */
+  def lateralMergedFlameLength(flameLength: Double, fireLineLength: Double, crownWidth: Double, crownSeparation: Double): Double = {
+    val sigma = fireLineLength min (0.23112 * crownWidth * math.pow(flameLength / crownWidth, 2.0 / 3.0))
+    flameLength * math.pow(sigma / crownSeparation + 1.0, 0.4)
   }
 
 }

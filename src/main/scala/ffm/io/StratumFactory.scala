@@ -1,7 +1,7 @@
 package ffm.io
 
 import scala.util.Try
-import ffm.forest.{Stratum, SpeciesComposition, StratumLevel}
+import ffm.forest.{Stratum, SpeciesComponent, StratumLevel}
 
 object StratumFactory {
 
@@ -16,17 +16,17 @@ object StratumFactory {
   def create(stratumDef: StratumDef, fallback: FallbackProvider): Try[Stratum] = {
     for {
       vas <- Try( new ValueAssignments(stratumDef.params, items, fallback) )
-      sppCompositions <- buildSpeciesCompositions(stratumDef, fallback)
+      sppCompositions <- buildSpeciesComponents(stratumDef, fallback)
       stratum <- buildStratum(vas, sppCompositions)
     } yield stratum
   }
   
-  def buildSpeciesCompositions(stratumDef: StratumDef, fallback: FallbackProvider): Try[List[SpeciesComposition]] = {
-    val tries = stratumDef.species map (spDef => SpeciesCompositionFactory.create(spDef, fallback))
+  def buildSpeciesComponents(stratumDef: StratumDef, fallback: FallbackProvider): Try[List[SpeciesComponent]] = {
+    val tries = stratumDef.species map (spDef => SpeciesComponentFactory.create(spDef, fallback))
     Try( tries map (_.get) )
   }
   
-  def buildStratum(vas: ValueAssignments, spp: List[SpeciesComposition]): Try[Stratum] = {
+  def buildStratum(vas: ValueAssignments, spp: List[SpeciesComponent]): Try[Stratum] = {
     for {
       level <- Try( StratumLevel(vas.str("level")) )
       plantSeparation <- Try( vas.dval("plantSeparation") )

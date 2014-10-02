@@ -3,21 +3,21 @@ package ffm.util
 import scala.annotation.tailrec
 
 /**
- * Provides some handy extra methods for sequences in a pimp-my-library fashion.
+ * Provides some handy extra methods for IndexedSequences in pimp-my-library style.
  *
  * {{{
  * // import the object and its contents to add extra methods to 
  * // sequences in scope
- * import ffm.util.SeqUtils._
+ * import ffm.util.IndexedSeqUtils._
  * 
  * // Example: the pairs method (sugar for seq.zip( seq.tail ) )
  * val xs = Vector(1, 2, 3, 4)
  * println(xs.pairs)  // prints Vector((1, 2), (2, 3), (3, 4))
  * }}}
  */
-object SeqUtils {
+object IndexedSeqUtils {
 
-  implicit class SeqEx[A](seq: Seq[A]) {
+  implicit class IndexedSeqEx[A](seq: Seq[A]) {
     
     /**
      * Returns the sequence of 2-tuples consisting of successive pairs
@@ -28,6 +28,23 @@ object SeqUtils {
     def pairs: Iterator[(A, A)] = 
       if (seq.isEmpty) Iterator.empty
       else seq.iterator zip(seq.tail.iterator)
+    
+    /**
+     * Combines this sequence with another by applying a function to the 
+     * overlapping elements and appending any left-over elements.
+     * 
+     * Let (n, n2) be the lengths of this sequence and seq2.
+     * The output sequence consists of min(n, n2) elements, calculated by 
+     * applying function f to the overlapping input elements, followed by the
+     * the remaining elements of the longer sequence if n != n2.
+     */
+    def combine(seq2: Seq[A], f: (A, A) => A): Seq[A] = {
+      val (n, n2) = (seq.length, seq2.length)
+      val common = (seq zip seq2) map { case(a, a2) => f(a, a2) }
+      
+      if (n == n2) common
+      else common ++ (if (n > n2) seq.drop(n2) else seq2.drop(n))
+    }
 
     /**
      * Performs a fold left operation on the sequence, performing a test on 

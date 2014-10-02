@@ -26,5 +26,5 @@ object Units {
    * Convert from radians to degrees.
    */
   def rad2deg(radians: Double) = math.toDegrees(radians)
-    
+  
 }

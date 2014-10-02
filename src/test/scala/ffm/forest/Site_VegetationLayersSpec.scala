@@ -4,7 +4,7 @@ import org.mockito.Mockito.when
 
 import ffm.MockSpec
 import ffm.geometry._
-import ffm.util.SeqUtils._
+import ffm.util.IndexedSeqUtils._
 
 import StratumLevel._
 

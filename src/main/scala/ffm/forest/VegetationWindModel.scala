@@ -61,7 +61,7 @@ object VegetationWindModel {
   
   private def doWindSpeedCalculation(
       height: Double, 
-      layers: Vector[VegetationLayer], 
+      layers: IndexedSeq[VegetationLayer], 
       site: Site): Double = {
 
     // Map of leaf area index values indexed by stratum level.
@@ -70,7 +70,7 @@ object VegetationWindModel {
     
     // Function to iterate through the layers, progressively modifying the wind speed
     // until the layer containing the target height is reached.
-    def iter(curLayers: Vector[VegetationLayer], curWindSpeed: Double, refHt: Double): Double = {
+    def iter(curLayers: IndexedSeq[VegetationLayer], curWindSpeed: Double, refHt: Double): Double = {
       assert(!curLayers.isEmpty, s"Failed to find level for height=$height") 
       
       val curLayer = curLayers.head

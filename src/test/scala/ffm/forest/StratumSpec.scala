@@ -8,18 +8,18 @@ class StratumSpec extends MockSpec {
 
   val Tol = 1.0e-8
 
-  "A Stratum" should "normalize its input species composition values" in {
+  "A Stratum" should "normalize its input species weighting values" in {
 
     val N = 10
     val scs = (for {
       i <- 1 to 10
       sp = mockSpecies("sp" + i)
       compVal = math.random * 100
-    } yield SpeciesComposition(sp, compVal)).toVector
+    } yield SpeciesComponent(sp, compVal)).toVector
     
     val stratum = Stratum(StratumLevel.Canopy, scs, 0.0)
     
-    val normalizedCompositions = stratum.speciesCompositions map (_.composition)
+    val normalizedCompositions = stratum.speciesComponents map (_.weighting)
     normalizedCompositions.sum should be (1.0 +- Tol)
   } 
   
