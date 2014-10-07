@@ -1,7 +1,10 @@
 package ffm.geometry
 
 import com.vividsolutions.jts.{ geom => JTS }
+
+import JTSImplicits._
 import ffm.numerics.Numerics
+  
 
 /**
  * A polygon with six vertices representing a plant crown.
@@ -9,20 +12,12 @@ import ffm.numerics.Numerics
  * Uses JTS classes for the geometry internals but all of the mutable
  * JTS stuff is hidden from the clients of this class.
  */
-class CrownPoly private (val hc: Double, val he: Double, val ht: Double, val hp: Double, w: Double) {
-  require(hp > hc, s"Invalid dimensions: hp ($hp) should be greater than hc ($hc)")
-  require(ht >= he, s"Invalid dimensions: ht ($ht) should be greater than he ($he)")
-  require(w > 0.0, s"Invalid dimensions: width ($w) should be positive")
-
-  import ffm.geometry.JTSImplicits._
-
-  // JTS Polygon to which we delegate geometric computations
-  private val jtsPoly = createPoly()
+class CrownPoly private (jtsPoly: JTS.Polygon) {
 
   // bounding rectangle of the crown aligned with coordinate axes
   private val env = jtsPoly.getEnvelopeInternal()
 
-  val width: Double = w
+  val width: Double = env.getWidth
   val height: Double = env.getHeight
 
   val top: Double = env.getMaxY
@@ -33,6 +28,12 @@ class CrownPoly private (val hc: Double, val he: Double, val ht: Double, val hp:
   val centroid: Coord = jtsPoly.getCentroid().getCoordinate()
 
   val area: Double = jtsPoly.getArea
+  
+  val lowerLeft: Coord =
+    vertices.filter(c => Numerics.almostEq(c.x, left)).sortBy(_.y).head
+  
+  val lowerRight: Coord =
+    vertices.filter(c => Numerics.almostEq(c.x, right)).sortBy(_.y).head
 
   /**
    * Volume of revolution (assumes bilateral symmetry of polygon).
@@ -50,7 +51,12 @@ class CrownPoly private (val hc: Double, val he: Double, val ht: Double, val hp:
 
     sum * math.Pi / 3.0
   }
-
+  
+  def vertices: IndexedSeq[Coord] = {
+    val coords: Array[Coord] = jtsPoly.getExteriorRing().getCoordinates()
+    coords.toVector
+  }
+  
   /**
    * Iterator for the Segments making up this crown polygon.
    */
@@ -67,7 +73,7 @@ class CrownPoly private (val hc: Double, val he: Double, val ht: Double, val hp:
     val outsideCoord = ray.atDistance(1000)
 
     val coords = Array(ray.origin, outsideCoord)
-    
+
     val jtsLine = JTSGeometryFactory().createLineString(coords)
     val res: JTS.Geometry = jtsPoly.intersection(jtsLine)
 
@@ -79,41 +85,45 @@ class CrownPoly private (val hc: Double, val he: Double, val ht: Double, val hp:
   }
 
   /**
-   * Returns the The point in the base of the Poly with given x-value
-   * \param x
-   * \return The lowest (ie least y value) point in the Poly that has x-coordinate equal to x.
+   * Find the point in the base of this crown polygon with the given X ordinate.
    *
-   * If x is greater than right() then the function returns the lowest y-value with x == right(). Similarly if
-   * x is less than left() then the function returns the least y-value with x == left().
+   * If x is beyond the edges of the polygon it is clamped to the nearest edge.
    */
   def pointInBase(x: Double): Coord = {
-    if (Numerics.leq(x, left)) // treat as left => vertex 'd'
-      Coord(left, he)
-    else if (Numerics.geq(x, right)) // treat as right => vertex 'e'
-      Coord(right, he)
-    else if (Numerics.almostZero(x)) // centre => vertex 'f'
-      Coord(0, hc)
-    else { // intermediate x position => find point by intersection
+    import Numerics._
+
+    if (leq(x, left)) lowerLeft
+    else if (geq(x, right)) lowerRight
+    else {
       val verticalRay = Ray(Coord(x, bottom - 1.0), angle = math.Pi / 2)
+   
       intersection(verticalRay) match {
         case Some(seg) => Coord(x, seg.start.y)
-        case None => throw new Error(s"No base point for x=$x in crown width=$width hc=$hc he=$he")
+        case None => throw new Error(s"No base point for x=$x in crown width=$width")
       }
     }
   }
-  
+
   /**
    * Tests if a coordinate lies within the polygon.
    */
   def contains(c: Coord): Boolean = {
     val p = JTSGeometryFactory().createPoint(c)
-    jtsPoly.contains(p) 
+    jtsPoly.contains(p)
   }
-  
+
+  override def toString = s"CrownPoly(width=$width)"
+}
+
+object CrownPoly {
   /**
-   * Creates the underlying JTS Polygon object.
+   * Creates a new six-sided crown polygon from the given height and width parameters.
    */
-  private def createPoly(): JTS.Polygon = {
+  def apply(hc: Double, he: Double, ht: Double, hp: Double, w: Double): CrownPoly = {
+    require(hp > hc, s"Invalid dimensions: hp ($hp) should be greater than hc ($hc)")
+    require(ht >= he, s"Invalid dimensions: ht ($ht) should be greater than he ($he)")
+    require(w > 0.0, s"Invalid dimensions: width ($w) should be positive")
+
     // set up x,y pairs for polygon coords
     val xys = Array((0.0, hc), (w / 2, he), (w / 2, ht), (0.0, hp), (-w / 2, ht), (-w / 2, he), (0.0, hc))
 
@@ -123,15 +133,26 @@ class CrownPoly private (val hc: Double, val he: Double, val ht: Double, val hp:
 
     // ensure the polygon is in normal form, then return it
     poly.normalize()
-    poly
-  }
-}
 
-object CrownPoly {
+    new CrownPoly(poly)
+  }
+  
   /**
-   * Creates a new CrownPoly object from the given height values and width.
+   * Creates a new arbitrary polygon from vertex coordinates.
    */
-  def apply(hc: Double, he: Double, ht: Double, hp: Double, w: Double): CrownPoly = {
-    new CrownPoly(hc, he, ht, hp, w)
+  def apply(coords: IndexedSeq[Coord]): CrownPoly = {
+    require(coords.length > 2)
+    
+    // ensure the coords define a closed ring
+    val closedCoords = 
+      if (coords.head.almostEq(coords.last)) coords
+      else coords :+ coords.head
+      
+    val poly = JTSGeometryFactory().createPolygon(closedCoords.toArray)
+    if (!poly.isValid) throw new Error("Invalid crown polygon from coords: " + coords.mkString(", "))
+    
+    poly.normalize()
+    new CrownPoly(poly)
+    
   }
 }

@@ -6,12 +6,7 @@ import ffm.forest.StratumLevel
 import ffm.geometry.Coord
 
 trait IgnitionPathModel {
-
-  def generatePath(
-    runType: IgnitionRunType,
-    context: IgnitionContext,
-    intialPoint: Coord): IgnitionPath
-
+  def generatePath(context: IgnitionContext)(speciesComponent: SpeciesComponent, intialPoint: Coord): IgnitionPath
 }
 
 sealed trait IgnitionRunType
@@ -21,9 +16,9 @@ object IgnitionRunType {
 }
 
 case class IgnitionContext(
+  runType: IgnitionRunType,
   site: Site,
   stratumLevel: StratumLevel,
-  speciesComponent: SpeciesComponent,
   preHeatingFlames: IndexedSeq[PreHeatingFlame],
   incidentFlames: IndexedSeq[Flame],
   preHeatingEndTime: Double,

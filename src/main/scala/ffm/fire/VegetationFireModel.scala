@@ -1,7 +1,6 @@
 package ffm.fire
 
 import scala.collection.mutable
-
 import ffm.ModelSettings._
 import ffm.forest.Site
 import ffm.forest.Species
@@ -10,6 +9,9 @@ import ffm.forest.Stratum
 import ffm.forest.StratumLevel
 import ffm.forest.VegetationWindModel
 import ffm.geometry.Coord
+import ffm.geometry.CrownPoly
+import ffm.forest.SpeciesComponent
+import ffm.geometry.Ray
 
 trait FireModel {
   def run(): FireModelResult
@@ -20,6 +22,8 @@ trait FireModelResult {
 }
 
 class FireModelResultBuilder {
+  private case class Result(paths: IndexedSeq[IgnitionPath]) extends FireModelResult
+  
   private val pathBuf = mutable.ArrayBuffer.empty[IgnitionPath]
 
   /**
@@ -36,8 +40,6 @@ class FireModelResultBuilder {
   def paths(level: StratumLevel): IndexedSeq[IgnitionPath] = paths filter (_.context.stratumLevel == level)
 
   def toResult: FireModelResult = Result(paths.toVector)
-
-  private case class Result(paths: IndexedSeq[IgnitionPath]) extends FireModelResult
 }
 
 class SingleSiteFireModel(pathModel: IgnitionPathModel, site: Site, includeCanopy: Boolean, fireLineLength: Double) extends FireModel {
@@ -87,40 +89,82 @@ class SingleSiteFireModel(pathModel: IgnitionPathModel, site: Site, includeCanop
       val incidentFlames = createIncidentFlames(stratum, isConnected(_, stratum), allSpeciesWeightedFlameSeries)
       val stratumWindSpeed = VegetationWindModel.windSpeedAtHeight(stratum.averageMidHeight, site, includeCanopy)
 
-      val preHeatingEndTime = -1.0
-      val canopyHeatingDistance = 0.0
+      // FIXME - Get rid of these vars by making this block recursive
+      var preHeatingEndTime = -1.0
+      var canopyHeatingDistance = 0.0
+      var cumulativePreHeatingStartTime = 0.0
+
+      val plantRunContext = IgnitionContext(
+        IgnitionRunType.PlantRun,
+        site,
+        stratum.level,
+        preHeatingFlames,
+        incidentFlames,
+        preHeatingEndTime,
+        canopyHeatingDistance,
+        stratumWindSpeed)
+        
+      // Partial function to apply to all species / initial points in this stratum
+      val plantPathFn = pathModel.generatePath(plantRunContext) _
 
       for (spComp <- stratum.speciesComponents) {
-
-        val context = IgnitionContext(
-          site, stratum.level, spComp,
-          preHeatingFlames, incidentFlames,
-          preHeatingEndTime,
-          canopyHeatingDistance,
-          stratumWindSpeed)
-
         val paths = initialCrownIgnitionPoints(spComp.species) map { pos =>
-          pathModel.generatePath(IgnitionRunType.PlantRun, context, pos)
+          plantPathFn(spComp, pos)
         }
 
         val bestPath = paths reduce selectBestPath
         resultBuilder.addPath(bestPath)
       }
-      
-      val flameAttr = weightedFlameAttributes(resultBuilder.paths(stratum.level ))
-      
+
+      val flameAttr = weightedFlameAttributes(resultBuilder.paths(stratum.level))
+
       val mergedFlameLengths = flameAttr.flameLengths map { flen =>
         Flame.lateralMergedFlameLength(flen, fireLineLength, stratum.averageWidth, stratum.modelPlantSep)
       }
-      
-      val flames = (0 to flameAttr.size) map { i => 
+
+      val flames = (0 until flameAttr.size) map { i =>
         val length = mergedFlameLengths(i)
         val angle = Flame.windEffectFlameAngle(length, stratumWindSpeed, site.slope)
-
         Flame(length, angle, flameAttr.origins(i), flameAttr.flameDepths(i), flameAttr.temperatures(i))
       }
+
+      val flameSeries = StratumFlameSeries(stratum.level, flames)
+
+      cumulativePreHeatingStartTime += flameAttr.ignitionTime
+      preHeatingEndTime = cumulativePreHeatingStartTime
+
+      if (stratum.level == StratumLevel.Canopy) {
+
+        /*
+         * TODO - Canopy heating logic
+         */
+      }
+
+      val stratumCrown = createStratumCrown(stratum)
+
+      val stratumRunContext = plantRunContext.copy(
+        runType = IgnitionRunType.StratumRun,
+        preHeatingFlames = Vector.empty,
+        incidentFlames = flameSeries.flames,
+        preHeatingEndTime = 0.0,
+        canopyHeatingDistance = canopyHeatingDistance
+      )
       
-      val flameSeries = StratumFlameSeries
+      // Partial function to apply to all species within the stratum
+      val stratumPathFn = pathModel.generatePath(stratumRunContext) _
+          
+      val ray = Ray(flameAttr.origins.head, flameSeries.flames.head.angle)
+      val crossing = stratumCrown.intersection(ray)
+      if (crossing.isDefined) {
+        val initialPt = crossing.get.start
+
+        for (spComp <- stratum.speciesComponents) {
+          val proxySpecies = createProxyStratumSpecies(spComp.species, stratumCrown, stratum)
+          val proxyComponent = SpeciesComponent(proxySpecies, spComp.weighting)
+          val path = stratumPathFn(proxyComponent, crossing.get.start)
+        }
+      }
+
     }
 
     resultBuilder.toResult
@@ -213,34 +257,33 @@ class SingleSiteFireModel(pathModel: IgnitionPathModel, site: Site, includeCanop
     pts
   }
 
-
   /**
    * Holds weighted average flame attributes from a plant flame run.
    */
   case class WeightedFlameAttributes(
-      flameLengths: Seq[Double], 
-      flameDepths: Seq[Double], 
-      origins: Seq[Coord], 
-      temperatures: Seq[Double]) {
+    ignitionTime: Double,
+    flameLengths: Seq[Double],
+    flameDepths: Seq[Double],
+    origins: Seq[Coord],
+    temperatures: Seq[Double]) {
 
     val size = flameLengths.size
 
-    require(flameDepths.size == size && origins.size == size && temperatures.size == size, 
-        "All attribute sequences must be the same length")
+    require(flameDepths.size == size && origins.size == size && temperatures.size == size,
+      "All attribute sequences must be the same length")
   }
 
-  
   /**
    * Returns weighted flame attributes from IgnitionPaths collected from
    * plant flame runs on a single stratum level.
    */
   def weightedFlameAttributes(paths: IndexedSeq[IgnitionPath]): WeightedFlameAttributes = {
     import ffm.util.IndexedSeqUtils._
-    
+
     // All of the paths should be for the same stratum level
     val levels = paths.map(_.context.stratumLevel).toSet
     require(levels.size == 1, "Expected all paths from the same level but got: " + levels.mkString(", "))
-    
+
     val stratumLevel = levels.head
 
     // Helper to recurse through paths, keeping track of weighted averages as we go
@@ -250,39 +293,79 @@ class SingleSiteFireModel(pathModel: IgnitionPathModel, site: Site, includeCanop
       else {
         val path = curPaths.head
         val segments = path.segmentsLargeToSmall
-        val SpeciesComponent(species, wt) = path.context.speciesComponent
+        val SpeciesComponent(species, wt) = path.speciesComponent
 
-        val lengths = segments.map(_.length).map(species.flameLength(_) * wt)
+        val igTime = path.ignitionTime * wt
+
+        val lengths = segments.map(seg => PlantFlameModel.flameLength(species, seg.length) * wt)
         val depths = segments.map(_.length * wt)
         val origins = segments.map(_.start.times(wt))
 
-        val t = 
+        val t =
           if (Species.isGrass(species, stratumLevel)) GrassFlameDeltaTemperature
           else MainFlameDeltaTemperature
 
         val temps = lengths.map(_ * t)
 
-        val attrs = WeightedFlameAttributes(lengths, depths, origins, temps)
+        val attrs = WeightedFlameAttributes(igTime, lengths, depths, origins, temps)
 
         iter(combine(curAttrs, attrs), curPaths.tail)
       }
     }
-    
+
     // Helper to combine data from two weighted attribute objects
     def combine(attr1: WeightedFlameAttributes, attr2: WeightedFlameAttributes) =
       WeightedFlameAttributes(
+        attr1.ignitionTime + attr2.ignitionTime,
         attr1.flameLengths.combine(attr2.flameLengths, _ + _),
         attr1.flameDepths.combine(attr2.flameDepths, _ + _),
         attr1.origins.combine(attr2.origins, (cthis, cthat) => cthis.add(cthat)),
-        attr1.temperatures.combine(attr2.temperatures, _ + _)
-      )
+        attr1.temperatures.combine(attr2.temperatures, _ + _))
 
-
-    val init = WeightedFlameAttributes(Vector(), Vector(), Vector(), Vector())
+    val init = WeightedFlameAttributes(0.0, Vector(), Vector(), Vector(), Vector())
     val attrs = iter(init, paths)
-    
+
     // Finalize the calculation of length-weighted temperatures and return
     val finalTemps = (attrs.temperatures zip attrs.flameLengths) map { case (t, len) => t / len }
     attrs.copy(temperatures = finalTemps)
   }
+
+  /**
+   * Creates an artificial crown for a stratum flame run.
+   */
+  def createStratumCrown(stratum: Stratum): CrownPoly = {
+    val minx = stratum.modelPlantSep - stratum.averageWidth / 2
+    val maxx = minx + StratumBigCrownWidth
+
+    val tanSlope = math.tan(site.slope)
+
+    val vertices = Vector(
+      Coord(minx, stratum.averageBottom + minx * tanSlope),
+      Coord(minx, stratum.averageTop + minx * tanSlope),
+      Coord(maxx, stratum.averageTop + maxx * tanSlope),
+      Coord(maxx, stratum.averageBottom + maxx * tanSlope))
+
+    CrownPoly(vertices)
+  }
+
+  /**
+   * Creates a proxy for a given species to use in a stratum flame run.
+   */
+  def createProxyStratumSpecies(sp: Species, crown: CrownPoly, stratum: Stratum): Species = {
+    Species(name = sp.name,
+      crown = crown,
+      liveLeafMoisture = sp.liveLeafMoisture,
+      deadLeafMoisture = sp.deadLeafMoisture,
+      propDead = sp.propDead,
+      ignitionTemp = Some(sp.ignitionTemperature),
+      leafForm = sp.leafForm,
+      leafThickness = sp.leafThickness,
+      leafWidth = sp.leafWidth,
+      leafLength = sp.leafLength,
+      leafSeparation = sp.leafSeparation,
+      stemOrder = sp.stemOrder,
+      clumpDiameter = sp.clumpDiameter,
+      clumpSeparation = math.max(sp.clumpSeparation, stratum.modelPlantSep - stratum.averageWidth))
+  }
+
 }

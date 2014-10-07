@@ -116,5 +116,10 @@ object ModelSettings {
    * computed using the wind effect model
    */
   val SlopeDominanceWindThreshold: Double = 0.8333
+  
+  /**
+   * The width to use for the artificial crown polygon in stratum flame runs.
+   */
+  val StratumBigCrownWidth: Double = 1000.0
 
 }

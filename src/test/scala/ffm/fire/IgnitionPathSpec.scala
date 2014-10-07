@@ -20,9 +20,8 @@ class IgnitionPathSpec extends FlatSpec with Matchers with MockitoSugar with Opt
   val context = mock[IgnitionContext]
   when (context.site) thenReturn site
   when (context.stratumLevel) thenReturn stratumLevel 
-  when (context.speciesComponent) thenReturn spComp
   
-  def newBuilder = IgnitionPathBuilder(IgnitionRunType.PlantRun, context, Coord.Origin)
+  def newBuilder = IgnitionPathBuilder(context, spComp, Coord.Origin)
   
   val c0 = Coord.Origin 
   val c1 = Coord(1, 1)
@@ -36,9 +35,9 @@ class IgnitionPathSpec extends FlatSpec with Matchers with MockitoSugar with Opt
     newBuilder.hasIgnition should be (false)
   }
   
-  it should "throw a NoSuchElementException for ignitionTime before ignition has occurred" in {
+  it should "throw a NoSuchElementException for ignitionTimeStep before ignition has occurred" in {
     intercept [NoSuchElementException] {
-      newBuilder.ignitionTime
+      newBuilder.ignitionTimeStep
     }
   }
   
@@ -51,7 +50,7 @@ class IgnitionPathSpec extends FlatSpec with Matchers with MockitoSugar with Opt
   it should "take the time of the first added segment as ignition time" in {
     val builder = newBuilder
     builder.addSegment(3, c0, c1)
-    builder.ignitionTime should be (3)
+    builder.ignitionTimeStep should be (3)
   }
   
   it should "return true for hasIgnition once a segment has been added" in {

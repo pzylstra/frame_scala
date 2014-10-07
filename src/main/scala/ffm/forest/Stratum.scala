@@ -1,6 +1,7 @@
 package ffm.forest
 
 import ffm.geometry.CrownPoly
+import ffm.fire.PlantFlameModel
 
 
 class Stratum private (
@@ -37,7 +38,7 @@ class Stratum private (
   val averageMidHeight = wtAv( sc => (crown(sc).top + crown(sc).bottom) / 2 )
   
   /** Weighted average flame duration. */
-  val averageFlameDuration = wtAv( sc => sc.species.flameDuration )
+  val averageFlameDuration = wtAv( sc => PlantFlameModel.flameDuration(sc.species) )
     
   /** Modelled plant separation. */
   val modelPlantSep = math.max(plantSep, averageWidth)

@@ -1,15 +1,11 @@
 package ffm.fire
 
-import ffm.forest.Site
-import ffm.forest.StratumLevel
-import ffm.forest.Species
-import ffm.geometry.Coord
 import scala.collection.mutable.ArrayBuffer
-import ffm.ModelSettings
-import ffm.geometry.Segment
 import scala.util.control._
-import ffm.geometry.Ray
-import ffm.geometry.Line
+
+import ffm.ModelSettings._
+import ffm.forest.{Site, Species, SpeciesComponent, StratumLevel}
+import ffm.geometry._
 import ffm.numerics.Numerics
 
 /**
@@ -22,12 +18,9 @@ class SpikeIgnitionPathModel extends IgnitionPathModel {
 
   import IgnitionRunType._
 
-  def generatePath(
-    runType: IgnitionRunType,
-    context: IgnitionContext,
-    initialPoint: Coord): IgnitionPath = {
+  override def generatePath(context: IgnitionContext)(speciesComponent: SpeciesComponent, initialPoint: Coord): IgnitionPath = {
 
-    val runner = new Runner(runType, context)
+    val runner = new Runner(context, speciesComponent)
     runner.run(initialPoint)
   }
 
@@ -35,12 +28,13 @@ class SpikeIgnitionPathModel extends IgnitionPathModel {
    * This inner class is only here to make it easier to structure the path simulation as
    * a series of small functions.
    */
-  private class Runner(runType: IgnitionRunType, context: IgnitionContext) {
+  private class Runner(context: IgnitionContext, speciesComponent: SpeciesComponent) {
 
-    // Define some getters so we don't have to write 'context.' all the time
+    // Some getters to make the code easier to read
+    def runType = context.runType
     def site = context.site
     def level = context.stratumLevel
-    def species = context.speciesComponent.species 
+    def species = speciesComponent.species
     def preHeatingFlames = context.preHeatingFlames
     def incidentFlames = context.incidentFlames
     def stratumWindSpeed = context.stratumWindSpeed
@@ -49,7 +43,7 @@ class SpikeIgnitionPathModel extends IgnitionPathModel {
      * Runs the path simulation and returns an IgnitionResult.
      */
     def run(initialPoint: Coord): IgnitionPath = {
-      val pathBuilder = IgnitionPathBuilder(runType, context, initialPoint)
+      val pathBuilder = IgnitionPathBuilder(context, speciesComponent, initialPoint)
 
       //pop the last pre-heating flame off the vector of pre-heating flames because that level will
       //provide the direct heating
@@ -78,9 +72,9 @@ class SpikeIgnitionPathModel extends IgnitionPathModel {
               if (runType == IgnitionRunType.StratumRun && pathBuilder.hasIgnition) {
                 val N = pathBuilder.numSegments
                 if (N == 1)
-                  math.max(0.0, pathBuilder.head.end.x - initialPoint.x) / ModelSettings.ComputationTimeInterval
+                  math.max(0.0, pathBuilder.head.end.x - initialPoint.x) / ComputationTimeInterval
                 else
-                  math.max(0.0, pathBuilder.segments(N - 1).end.x - pathBuilder.segments(N - 2).end.x) / ModelSettings.ComputationTimeInterval
+                  math.max(0.0, pathBuilder.segments(N - 1).end.x - pathBuilder.segments(N - 2).end.x) / ComputationTimeInterval
 
               } else 0.0
 
@@ -119,7 +113,7 @@ class SpikeIgnitionPathModel extends IgnitionPathModel {
 
             //the possible ignition distance is divided into numPenetrationSteps segments and we test each
             //segment in turn for ignition
-            val stepDist = pathLength / ModelSettings.NumPenetrationSteps
+            val stepDist = pathLength / NumPenetrationSteps
             val testPoints = (stepDist to pathLength by stepDist) map (d => iPt.toBearing(pathAngle, d))
 
             PointLoop.breakable {
@@ -156,7 +150,7 @@ class SpikeIgnitionPathModel extends IgnitionPathModel {
                     val flame = incidentFlames(i - 1)
                     val d = locateFlameOrigin(flame, iPt).distanceTo(testPt)
                     val t = flame.plumeTemperature(d, site.temperature)
-                    dryingFactor *= math.max(0.0, 1.0 - ModelSettings.ComputationTimeInterval / calculateIDT(t))
+                    dryingFactor *= math.max(0.0, 1.0 - ComputationTimeInterval / calculateIDT(t))
                   }
                 }
 
@@ -166,7 +160,7 @@ class SpikeIgnitionPathModel extends IgnitionPathModel {
                     val d = flame.origin.distanceTo(testPt)
                     val t = flame.plumeTemperature(d, site.temperature)
                     val idt = calculateIDT(t)
-                    dryingFactor *= math.max(0.0, 1.0 - ModelSettings.ComputationTimeInterval / idt)
+                    dryingFactor *= math.max(0.0, 1.0 - ComputationTimeInterval / idt)
                   }
                 }
 
@@ -200,7 +194,7 @@ class SpikeIgnitionPathModel extends IgnitionPathModel {
                 }
 
                 //if ignition does not occur for testPt then break from loop over penetration steps
-                if (idt > ModelSettings.ComputationTimeInterval || maxTemp < species.ignitionTemperature)
+                if (idt > ComputationTimeInterval || maxTemp < species.ignitionTemperature)
                   PointLoop.break
 
                 //if we get here ignition has occurred, so reset end pt and continue
@@ -224,9 +218,9 @@ class SpikeIgnitionPathModel extends IgnitionPathModel {
                   iPt.x > context.canopyHeatingDistance) {
                   // Flame residence time is reduced for stratum ignition in canopy 
                   // if the canopy has not been heated sufficiently.
-                  math.ceil(ModelSettings.ReducedCanopyFlameResidenceTime / ModelSettings.ComputationTimeInterval).toInt
+                  math.ceil(ReducedCanopyFlameResidenceTime / ComputationTimeInterval).toInt
                 } else {
-                  math.ceil(species.flameDuration / ModelSettings.ComputationTimeInterval).toInt
+                  math.ceil(PlantFlameModel.flameDuration(species) / ComputationTimeInterval).toInt
                 }
 
               val segStart = {
@@ -246,7 +240,7 @@ class SpikeIgnitionPathModel extends IgnitionPathModel {
             //reset ignition point
             iPt = ePt
             
-            if (timeStep - pathBuilder.ignitionTime >= ModelSettings.MaxIgnitionTimeSteps) TimeStepLoop.break
+            if (timeStep - pathBuilder.ignitionTimeStep >= MaxIgnitionTimeSteps) TimeStepLoop.break
           }
         } //end of loop over time steps
 
@@ -314,10 +308,10 @@ class SpikeIgnitionPathModel extends IgnitionPathModel {
      */
     def calculateIDT(temperature: Double): Double = {
       val idtProp =
-        if (Species.isGrass(species, level)) ModelSettings.GrassIDTReduction
+        if (Species.isGrass(species, level)) GrassIDTReduction
         else 1.0
 
-      species.ignitionDelayTime(temperature) * idtProp
+      PlantFlameModel.ignitionDelayTime(species, temperature) * idtProp
     }
 
     /*
@@ -342,10 +336,10 @@ class SpikeIgnitionPathModel extends IgnitionPathModel {
     def newPlantFlame(segment: IgnitedSegment, windSpeed: Double): Flame = {
       assert(segment.length > 0)
 
-      val flameLen = species.flameLength(segment.length)
+      val flameLen = PlantFlameModel.flameLength(species, segment.length)
       val deltaT =
-        if (Species.isGrass(species, level)) ModelSettings.GrassFlameDeltaTemperature
-        else ModelSettings.MainFlameDeltaTemperature
+        if (Species.isGrass(species, level)) GrassFlameDeltaTemperature
+        else MainFlameDeltaTemperature
 
       Flame(flameLen,
         Flame.windEffectFlameAngle(flameLen, windSpeed, site.slope),

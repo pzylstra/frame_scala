@@ -76,29 +76,32 @@ class CrownPolySpec extends FlatSpec with Matchers {
   }
   
   it should "return left-most lower vertex for pointInBase with x <= left" in {
-    val poly = CrownPoly(hc=1.0, he=2.0, ht=3.0, hp=4.0, w=2.0)
+    val he=2.0
+    val poly = CrownPoly(hc=1.0, he=he, ht=3.0, hp=4.0, w=2.0)
     
     val c1 = poly.pointInBase(poly.left - 1)
     val c2 = poly.pointInBase(poly.left)
     
     c1.almostEq(c2) should be (true)
-    c1 should be (Coord(poly.left, poly.he))
+    c1 should be (Coord(poly.left, he))
   }
   
   it should "return right-most lower vertex for pointInBase with x >= right" in {
-    val poly = CrownPoly(hc=1.0, he=2.0, ht=3.0, hp=4.0, w=2.0)
+    val he = 2.0
+    val poly = CrownPoly(hc=1.0, he=he, ht=3.0, hp=4.0, w=2.0)
     
     val c1 = poly.pointInBase(poly.right + 1)
     val c2 = poly.pointInBase(poly.right)
     
     c1.almostEq(c2) should be (true)
-    c1 should be (Coord(poly.right, poly.he))
+    c1 should be (Coord(poly.right, he))
   }
   
   it should "return the centre lower vertex for pointInBase with x = 0" in {
-    val poly = CrownPoly(hc=1.0, he=2.0, ht=3.0, hp=4.0, w=2.0)
+    val hc = 1.0
+    val poly = CrownPoly(hc=hc, he=2.0, ht=3.0, hp=4.0, w=2.0)
     
-    poly.pointInBase(0.0) should be (Coord(0, poly.hc))
+    poly.pointInBase(0.0) should be (Coord(0, hc))
   }
   
   it should "return the correct edge intersection for pointInBase with intermediate x" in {

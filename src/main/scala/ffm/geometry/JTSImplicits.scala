@@ -23,4 +23,6 @@ object JTSImplicits {
   implicit def CoordArrayToJTSCoordinateArray(coords: Array[Coord]): Array[JTS.Coordinate] = 
     coords map (c => new JTS.Coordinate(c.x, c.y))
   
+  implicit def JTSCoordinateArrayToCoordArray(jtsCoords: Array[JTS.Coordinate]): Array[Coord] =
+    jtsCoords map (c => Coord(c.x, c.y))
  }
