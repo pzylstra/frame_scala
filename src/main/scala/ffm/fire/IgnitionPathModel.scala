@@ -6,7 +6,7 @@ import ffm.forest.StratumLevel
 import ffm.geometry.Coord
 
 trait IgnitionPathModel {
-  def generatePath(context: IgnitionContext)(speciesComponent: SpeciesComponent, intialPoint: Coord): IgnitionPath
+  def generatePath(context: IgnitionContext, plantFlameModel: PlantFlameModel)(speciesComponent: SpeciesComponent, intialPoint: Coord): IgnitionPath
 }
 
 sealed trait IgnitionRunType

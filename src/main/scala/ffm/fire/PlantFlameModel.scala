@@ -5,7 +5,37 @@ import ffm.forest.LeafForm
 import ffm.forest.Species
 import ffm.numerics.Numerics
 
-object PlantFlameModel {
+/**
+ * Defines methods to calculate species-specific ignition and flame attributes.
+ */
+trait PlantFlameModel {
+  /**
+   * Calculates ignition delay time for a species at the given temperature.
+   */
+  def ignitionDelayTime(species: Species, temperature: Double): Double
+  
+  /**
+   * Calculates flame duration for a species (seconds).
+   */
+  def flameDuration(species: Species): Double
+  
+  /**
+   * Calculates leaf flame length for a species.
+   */
+  def leafFlameLength(species: Species): Double
+
+  /**
+   * Calculates flame length for a species given the length of the ignited
+   * segment within the crown.
+   */
+  def flameLength(species: Species, lengthIgnitedSeg: Double): Double
+}
+
+
+/**
+ * Default implementation of PlantFlameModel.
+ */
+object DefaultPlantFlameModel extends PlantFlameModel {
 
   /**
    * Calculates ignition delay time for a species at the given temperature.
@@ -32,7 +62,7 @@ object PlantFlameModel {
   /**
    * Calculates leaf flame length for a species.
    */
-  def leafFlameLength(species: Species) = {
+  def leafFlameLength(species: Species): Double = {
     val sqRootArea = math.sqrt(species.leafArea)
     val cubeRootArea = math.cbrt(species.leafArea)
     if (species.leafMoisture < (17.5 * cubeRootArea - 52.5 * sqRootArea - 0.0027) / 0.277)

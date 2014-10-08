@@ -18,9 +18,10 @@ class SpikeIgnitionPathModel extends IgnitionPathModel {
 
   import IgnitionRunType._
 
-  override def generatePath(context: IgnitionContext)(speciesComponent: SpeciesComponent, initialPoint: Coord): IgnitionPath = {
+  override def generatePath(context: IgnitionContext, plantFlameModel: PlantFlameModel)
+    (speciesComponent: SpeciesComponent, initialPoint: Coord): IgnitionPath = {
 
-    val runner = new Runner(context, speciesComponent)
+    val runner = new Runner(context, plantFlameModel, speciesComponent)
     runner.run(initialPoint)
   }
 
@@ -28,7 +29,7 @@ class SpikeIgnitionPathModel extends IgnitionPathModel {
    * This inner class is only here to make it easier to structure the path simulation as
    * a series of small functions.
    */
-  private class Runner(context: IgnitionContext, speciesComponent: SpeciesComponent) {
+  private class Runner(context: IgnitionContext, plantFlameModel: PlantFlameModel, speciesComponent: SpeciesComponent) {
 
     // Some getters to make the code easier to read
     def runType = context.runType
@@ -220,7 +221,7 @@ class SpikeIgnitionPathModel extends IgnitionPathModel {
                   // if the canopy has not been heated sufficiently.
                   math.ceil(ReducedCanopyFlameResidenceTime / ComputationTimeInterval).toInt
                 } else {
-                  math.ceil(PlantFlameModel.flameDuration(species) / ComputationTimeInterval).toInt
+                  math.ceil(plantFlameModel.flameDuration(species) / ComputationTimeInterval).toInt
                 }
 
               val segStart = {
@@ -311,7 +312,7 @@ class SpikeIgnitionPathModel extends IgnitionPathModel {
         if (Species.isGrass(species, level)) GrassIDTReduction
         else 1.0
 
-      PlantFlameModel.ignitionDelayTime(species, temperature) * idtProp
+      plantFlameModel.ignitionDelayTime(species, temperature) * idtProp
     }
 
     /*
@@ -336,7 +337,7 @@ class SpikeIgnitionPathModel extends IgnitionPathModel {
     def newPlantFlame(segment: IgnitedSegment, windSpeed: Double): Flame = {
       assert(segment.length > 0)
 
-      val flameLen = PlantFlameModel.flameLength(species, segment.length)
+      val flameLen = plantFlameModel.flameLength(species, segment.length)
       val deltaT =
         if (Species.isGrass(species, level)) GrassFlameDeltaTemperature
         else MainFlameDeltaTemperature

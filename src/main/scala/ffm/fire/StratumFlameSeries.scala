@@ -15,25 +15,32 @@ case class StratumFlameSeries (level: StratumLevel, flames: IndexedSeq[Flame]) {
   val numFlames: Int = flames.size
 
   /** Flame lengths (same vector as `flames map (_.flameLength)`) */
-  val flameLengths: IndexedSeq[Double] = flames map (_.flameLength)
+  val flameLengths: IndexedSeq[Double] = 
+    if (flames.isEmpty) Vector()
+    else flames map (_.flameLength)
 
   /** 
    * Mean flame length. 
    *
    * There are no zero-length flames.
    */
-  val meanFlameLength: Double = flameLengths.sum / numFlames
+  val meanFlameLength: Double = 
+    if (flames.isEmpty) 0.0
+    else flameLengths.sum / numFlames
 
   /**
    * Maximum flame length.
    */
-  val maxFlameLength: Double = flameLengths.max
+  val maxFlameLength: Double = 
+    if (flames.isEmpty) 0.0
+    else flames.map(_.flameLength).max
   
   /**
    * Maximum flame length capped to mean length plus 1 std dev.
    */
   val cappedMaxFlameLength: Double = 
-    math.max(maxFlameLength, meanFlameLength + Stats.stddev(flameLengths, meanFlameLength))
+    if (flames.isEmpty) 0.0
+    else math.max(maxFlameLength, meanFlameLength + Stats.stddev(flameLengths, meanFlameLength))
   
 }
 

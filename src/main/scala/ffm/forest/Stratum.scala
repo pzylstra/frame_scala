@@ -37,9 +37,6 @@ class Stratum private (
   /** Weighted average crown mid-height. */
   val averageMidHeight = wtAv( sc => (crown(sc).top + crown(sc).bottom) / 2 )
   
-  /** Weighted average flame duration. */
-  val averageFlameDuration = wtAv( sc => PlantFlameModel.flameDuration(sc.species) )
-    
   /** Modelled plant separation. */
   val modelPlantSep = math.max(plantSep, averageWidth)
   
