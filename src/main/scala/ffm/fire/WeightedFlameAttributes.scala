@@ -55,13 +55,32 @@ trait WeightedFlameAttributes {
  * 
  */
 object WeightedFlameAttributes {
+  
+  object Empty extends WeightedFlameAttributes {
+    val timeToLongestFlame = 0.0
+    val flameLengths = Vector.empty[Double]
+    val flameDepths = Vector.empty[Double]
+    val origins = Vector.empty[Coord]
+    val temperatures = Vector.empty[Double]
+  }
+  
+  case class NonEmpty(
+    timeToLongestFlame: Double,
+    flameLengths: Seq[Double],
+    flameDepths: Seq[Double],
+    origins: Seq[Coord],
+    temperatures: Seq[Double]) extends WeightedFlameAttributes {
+
+    require(flameDepths.size == size && origins.size == size && temperatures.size == size,
+      "All attribute sequences must be the same length")
+  }
 
   /**
    * Returns weighted flame attributes from the given IgnitionPaths using
    * the given [[ffm.fire.PlantFlameModel]].
    */
   def apply(plantFlameModel: PlantFlameModel)(paths: IndexedSeq[IgnitionPath]): WeightedFlameAttributes = {
-    if (paths.isEmpty) emptyAttr()
+    if (paths.isEmpty) Empty
     else processPaths(paths, plantFlameModel)
   }
   
@@ -78,7 +97,7 @@ object WeightedFlameAttributes {
     val stratumLevel = levels.head
 
     // Helper to recurse through paths, keeping track of weighted averages as we go
-    def iter(curAttrs: WeightedAttributes, curPaths: IndexedSeq[IgnitionPath]): WeightedAttributes = {
+    def iter(curAttrs: WeightedFlameAttributes, curPaths: IndexedSeq[IgnitionPath]): WeightedFlameAttributes = {
       if (curPaths.isEmpty) curAttrs
       else if (!curPaths.head.hasIgnition) iter(curAttrs, curPaths.tail)
       else {
@@ -98,24 +117,25 @@ object WeightedFlameAttributes {
 
         val temps = lengths.map(_ * t)
 
-        val attrs = WeightedAttributes(timeToMaxLen, lengths, depths, origins, temps)
+        val attrs = NonEmpty(timeToMaxLen, lengths, depths, origins, temps)
 
         iter(combine(curAttrs, attrs), curPaths.tail)
       }
     }
 
-    val init = emptyAttr()
+    val init = Empty
     val attrs = iter(init, paths)
 
-    // Finalize the calculation of length-weighted temperatures and return
-    val finalTemps = (attrs.temperatures zip attrs.flameLengths) map { case (t, len) => t / len }
-    attrs.copy(temperatures = finalTemps)
+    // If we have data, finalize the calculation of length-weighted temperatures
+    attrs match {
+      case attrs: NonEmpty =>
+        val finalTemps = (attrs.temperatures zip attrs.flameLengths) map { case (t, len) => t / len }
+        attrs.copy(temperatures = finalTemps)
+        
+      case _ =>
+        attrs
+    }
   }
-
-  /**
-   * Creates an empty weighted attribute object.
-   */
-  private def emptyAttr() = WeightedAttributes(0.0, Vector(), Vector(), Vector(), Vector())
 
   /** 
    * Combines data from two weighted attribute objects into a single object. 
@@ -123,23 +143,12 @@ object WeightedFlameAttributes {
   private def combine(attr1: WeightedFlameAttributes, attr2: WeightedFlameAttributes) = {
     import ffm.util.IndexedSeqUtils._
 
-    WeightedAttributes(
+    NonEmpty(
       attr1.timeToLongestFlame + attr2.timeToLongestFlame,
       attr1.flameLengths.combine(attr2.flameLengths, _ + _),
       attr1.flameDepths.combine(attr2.flameDepths, _ + _),
       attr1.origins.combine(attr2.origins, (cthis, cthat) => cthis.add(cthat)),
       attr1.temperatures.combine(attr2.temperatures, _ + _))
-  }
-  
-  case class WeightedAttributes(
-    timeToLongestFlame: Double,
-    flameLengths: Seq[Double],
-    flameDepths: Seq[Double],
-    origins: Seq[Coord],
-    temperatures: Seq[Double]) extends WeightedFlameAttributes {
-
-    require(flameDepths.size == size && origins.size == size && temperatures.size == size,
-      "All attribute sequences must be the same length")
   }
 
 }

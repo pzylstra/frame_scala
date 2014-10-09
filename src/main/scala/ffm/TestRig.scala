@@ -6,7 +6,7 @@ import ffm.fire._
 
 object TestRig extends App {
 
-  val path = "c:/michael/coding/cpp/forest_flammability_model/5.txt"
+  val path = "c:/michael/coding/cpp/forest_flammability_model/56a.txt"
   val modelDef = ParamFileParser.readTextFormatFile(path).get
 
   // get fallback value for dead leaf moisture from the surface 
