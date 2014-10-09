@@ -227,13 +227,70 @@ class SingleSiteFireModel(pathModel: IgnitionPathModel, plantFlameModel: PlantFl
    * the path with the highest drying temperature is selected.
    */
   private def selectBestPath(a: IgnitionPath, b: IgnitionPath): IgnitionPath = {
-    if (a.hasIgnition)
+    if (a.hasIgnition) {
       if (b.hasIgnition) if (b.maxSegmentLength > a.maxSegmentLength) b else a
       else a
+    }
     else if (b.hasIgnition) b
     else if (b.maxDryingTemperature > a.maxDryingTemperature) b else a
   }
 
+/**
+   * Creates an artificial crown for a stratum flame run.
+   */
+  def createStratumCrown(stratum: Stratum): CrownPoly = {
+    val minx = stratum.modelPlantSep - stratum.averageWidth / 2
+    val maxx = minx + StratumBigCrownWidth
+
+    val tanSlope = math.tan(site.slope)
+
+    val vertices = Vector(
+      Coord(minx, stratum.averageBottom + minx * tanSlope),
+      Coord(minx, stratum.averageTop + minx * tanSlope),
+      Coord(maxx, stratum.averageTop + maxx * tanSlope),
+      Coord(maxx, stratum.averageBottom + maxx * tanSlope))
+
+    CrownPoly(vertices)
+  }
+
+  /**
+   * Creates a proxy for a given species to use in a stratum flame run.
+   */
+  def createProxyStratumSpecies(sp: Species, crown: CrownPoly, stratum: Stratum): Species = {
+    Species(name = sp.name,
+      crown = crown,
+      liveLeafMoisture = sp.liveLeafMoisture,
+      deadLeafMoisture = sp.deadLeafMoisture,
+      propDead = sp.propDead,
+      ignitionTemp = Some(sp.ignitionTemperature),
+      leafForm = sp.leafForm,
+      leafThickness = sp.leafThickness,
+      leafWidth = sp.leafWidth,
+      leafLength = sp.leafLength,
+      leafSeparation = sp.leafSeparation,
+      stemOrder = sp.stemOrder,
+      clumpDiameter = sp.clumpDiameter,
+      clumpSeparation = math.max(sp.clumpSeparation, stratum.modelPlantSep - stratum.averageWidth))
+  }
+
+  /**
+   * Returns the coordinates of candidate ignition points across the base of
+   * a species crown.
+   */
+  def initialCrownIgnitionPoints(species: Species): IndexedSeq[Coord] = {
+    val pts = for {
+      prop <- -1.0 to 1.0 by 0.5
+      x = species.crown.width * prop / 2
+      crownPt = species.crown.pointInBase(x)
+
+      // ensure that the point is not below surface
+      surfacePt = Coord(x, x * math.tan(site.slope))
+      pt = if (crownPt.y > surfacePt.y) crownPt else surfacePt
+    } yield pt
+
+    pts
+  }
+  
   /**
    * Tests if any ignited segments in an IgnitionPath give rise to flames extending
    * beyond the species crown.
@@ -304,62 +361,6 @@ class SingleSiteFireModel(pathModel: IgnitionPathModel, plantFlameModel: PlantFl
       // Return the combined flames as the incident flames
       combinedFlames
     }
-  }
-
-  /**
-   * Returns the coordinates of candidate ignition points across the base of
-   * a species crown.
-   */
-  def initialCrownIgnitionPoints(species: Species): IndexedSeq[Coord] = {
-    val pts = for {
-      prop <- -1.0 to 1.0 by 0.5
-      x = species.crown.width * prop / 2
-      crownPt = species.crown.pointInBase(x)
-
-      // ensure that the point is not below surface
-      surfacePt = Coord(x, x * math.tan(site.slope))
-      pt = if (crownPt.y > surfacePt.y) crownPt else surfacePt
-    } yield pt
-
-    pts
-  }
-
-  /**
-   * Creates an artificial crown for a stratum flame run.
-   */
-  def createStratumCrown(stratum: Stratum): CrownPoly = {
-    val minx = stratum.modelPlantSep - stratum.averageWidth / 2
-    val maxx = minx + StratumBigCrownWidth
-
-    val tanSlope = math.tan(site.slope)
-
-    val vertices = Vector(
-      Coord(minx, stratum.averageBottom + minx * tanSlope),
-      Coord(minx, stratum.averageTop + minx * tanSlope),
-      Coord(maxx, stratum.averageTop + maxx * tanSlope),
-      Coord(maxx, stratum.averageBottom + maxx * tanSlope))
-
-    CrownPoly(vertices)
-  }
-
-  /**
-   * Creates a proxy for a given species to use in a stratum flame run.
-   */
-  def createProxyStratumSpecies(sp: Species, crown: CrownPoly, stratum: Stratum): Species = {
-    Species(name = sp.name,
-      crown = crown,
-      liveLeafMoisture = sp.liveLeafMoisture,
-      deadLeafMoisture = sp.deadLeafMoisture,
-      propDead = sp.propDead,
-      ignitionTemp = Some(sp.ignitionTemperature),
-      leafForm = sp.leafForm,
-      leafThickness = sp.leafThickness,
-      leafWidth = sp.leafWidth,
-      leafLength = sp.leafLength,
-      leafSeparation = sp.leafSeparation,
-      stemOrder = sp.stemOrder,
-      clumpDiameter = sp.clumpDiameter,
-      clumpSeparation = math.max(sp.clumpSeparation, stratum.modelPlantSep - stratum.averageWidth))
   }
 
 }
