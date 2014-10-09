@@ -1,6 +1,7 @@
 package ffm.fire
 
 import scala.collection.mutable
+
 import ffm.ModelSettings._
 import ffm.forest.Site
 import ffm.forest.Species
@@ -10,8 +11,8 @@ import ffm.forest.StratumLevel
 import ffm.forest.VegetationWindModel
 import ffm.geometry.Coord
 import ffm.geometry.CrownPoly
-import ffm.forest.SpeciesComponent
 import ffm.geometry.Ray
+
 
 trait FireModel {
   def run(): FireModelResult
@@ -23,7 +24,7 @@ trait FireModelResult {
 
 class FireModelResultBuilder {
   private case class Result(paths: IndexedSeq[IgnitionPath]) extends FireModelResult
-  
+
   private val pathBuf = mutable.ArrayBuffer.empty[IgnitionPath]
 
   /**
@@ -32,19 +33,22 @@ class FireModelResultBuilder {
   def addPath(path: IgnitionPath): Unit = {
     pathBuf += path
   }
+  
+  def addPaths(paths: IndexedSeq[IgnitionPath]): Unit = {
+    pathBuf ++= paths
+  }
 
   /** Returns all IgnitionPaths. */
   def paths: IndexedSeq[IgnitionPath] = pathBuf.toVector
 
   /** Returns the IgnitionPaths for a given stratum level. */
-  def paths(level: StratumLevel, runType: IgnitionRunType): IndexedSeq[IgnitionPath] = 
+  def paths(level: StratumLevel, runType: IgnitionRunType): IndexedSeq[IgnitionPath] =
     paths filter (p => p.context.stratumLevel == level && p.context.runType == runType)
 
-  def toResult: FireModelResult = Result(paths.toVector)
+  def toResult: FireModelResult = Result(paths)
 }
 
-class SingleSiteFireModel(pathModel: IgnitionPathModel, plantFlameModel: PlantFlameModel)
-  (site: Site, includeCanopy: Boolean, fireLineLength: Double) extends FireModel {
+class SingleSiteFireModel(pathModel: IgnitionPathModel, plantFlameModel: PlantFlameModel)(site: Site, includeCanopy: Boolean, fireLineLength: Double) extends FireModel {
 
   val surfaceWindSpeed = VegetationWindModel.surfaceWindSpeed(site, includeCanopy)
 
@@ -64,9 +68,7 @@ class SingleSiteFireModel(pathModel: IgnitionPathModel, plantFlameModel: PlantFl
         deltaTemperature = MainFlameDeltaTemperature)
     }
   }
-  
-  
-  
+
   /**
    * Runs the fire model.
    */
@@ -109,78 +111,96 @@ class SingleSiteFireModel(pathModel: IgnitionPathModel, plantFlameModel: PlantFl
         preHeatingEndTime,
         canopyHeatingDistance,
         stratumWindSpeed)
-        
+
       // Partial function to apply to all species / initial points in this stratum
       val plantPathFn = pathModel.generatePath(plantRunContext, plantFlameModel) _
 
-      for (spComp <- stratum.speciesComponents) {
-        val paths = initialCrownIgnitionPoints(spComp.species) map { pos =>
-          plantPathFn(spComp, pos)
+      val plantRunResult = findPlantIgnitionPaths(stratum, plantPathFn)
+      resultBuilder.addPaths(plantRunResult.paths)
+      
+      if (plantRunResult.isIgnition) {
+        val plantFlameAttr = weightedAttributesFunc(plantRunResult.paths)
+
+        val mergedFlameLengths = plantFlameAttr.flameLengths map { flen =>
+          Flame.lateralMergedFlameLength(flen, fireLineLength, stratum.averageWidth, stratum.modelPlantSep)
         }
 
-        val bestPath = paths reduce selectBestPath
-        resultBuilder.addPath(bestPath)
-      }
+        val flames = (0 until plantFlameAttr.size) map { i =>
+          val length = mergedFlameLengths(i)
+          val angle = Flame.windEffectFlameAngle(length, stratumWindSpeed, site.slope)
+          Flame(length, angle, plantFlameAttr.origins(i), plantFlameAttr.flameDepths(i), plantFlameAttr.temperatures(i))
+        }
 
-      val plantFlameAttr = weightedAttributesFunc(resultBuilder.paths(stratum.level, IgnitionRunType.PlantRun))
+        val flameSeries = StratumFlameSeries(stratum.level, flames)
 
-      val mergedFlameLengths = plantFlameAttr.flameLengths map { flen =>
-        Flame.lateralMergedFlameLength(flen, fireLineLength, stratum.averageWidth, stratum.modelPlantSep)
-      }
+        cumulativePreHeatingStartTime += plantFlameAttr.timeToLongestFlame
+        preHeatingEndTime = cumulativePreHeatingStartTime
 
-      val flames = (0 until plantFlameAttr.size) map { i =>
-        val length = mergedFlameLengths(i)
-        val angle = Flame.windEffectFlameAngle(length, stratumWindSpeed, site.slope)
-        Flame(length, angle, plantFlameAttr.origins(i), plantFlameAttr.flameDepths(i), plantFlameAttr.temperatures(i))
-      }
+        if (stratum.level == StratumLevel.Canopy) {
 
-      val flameSeries = StratumFlameSeries(stratum.level, flames)
-
-      cumulativePreHeatingStartTime += plantFlameAttr.timeToLongestFlame
-      preHeatingEndTime = cumulativePreHeatingStartTime
-
-      if (stratum.level == StratumLevel.Canopy) {
-
-        /*
+          /*
          * TODO - Canopy heating logic
          */
-      }
+        }
 
-      val stratumCrown = createStratumCrown(stratum)
+        val stratumCrown = createStratumCrown(stratum)
 
-      val stratumRunContext = plantRunContext.copy(
-        runType = IgnitionRunType.StratumRun,
-        preHeatingFlames = Vector.empty,
-        incidentFlames = flameSeries.flames,
-        preHeatingEndTime = 0.0,
-        canopyHeatingDistance = canopyHeatingDistance
-      )
-      
-      // Partial function to apply to all species within the stratum
-      val stratumPathFn = pathModel.generatePath(stratumRunContext, plantFlameModel) _
-          
-      val ray = Ray(plantFlameAttr.origins.head, flameSeries.flames.head.angle)
-      val crossing = stratumCrown.intersection(ray)
-      if (crossing.isDefined) {
-        val initialPt = crossing.get.start
+        val stratumRunContext = plantRunContext.copy(
+          runType = IgnitionRunType.StratumRun,
+          preHeatingFlames = Vector.empty,
+          incidentFlames = flameSeries.flames,
+          preHeatingEndTime = 0.0,
+          canopyHeatingDistance = canopyHeatingDistance)
 
-        for (spComp <- stratum.speciesComponents) {
-          val proxySpecies = createProxyStratumSpecies(spComp.species, stratumCrown, stratum)
-          val proxyComponent = SpeciesComponent(proxySpecies, spComp.weighting)
-          val path = stratumPathFn(proxyComponent, crossing.get.start)
-          resultBuilder.addPath(path)
+        // Partial function to apply to all species within the stratum
+        val stratumPathFn = pathModel.generatePath(stratumRunContext, plantFlameModel) _
+
+        val ray = Ray(plantFlameAttr.origins.head, flameSeries.flames.head.angle)
+        val crossing = stratumCrown.intersection(ray)
+        if (crossing.isDefined) {
+          val initialPt = crossing.get.start
+
+          for (spComp <- stratum.speciesComponents) {
+            val proxySpecies = createProxyStratumSpecies(spComp.species, stratumCrown, stratum)
+            val proxyComponent = SpeciesComponent(proxySpecies, spComp.weighting)
+            val path = stratumPathFn(proxyComponent, crossing.get.start)
+            resultBuilder.addPath(path)
+          }
+        }
+
+        // We might or might not have some stratum ignition paths...
+        val stratumPaths = resultBuilder.paths(stratum.level, IgnitionRunType.StratumRun)
+        if (!stratumPaths.isEmpty) {
+          val stratumFlameAttr = weightedAttributesFunc(stratumPaths)
+
         }
       }
-      
-      // We might or might not have some stratum ignition paths...
-      val stratumPaths = resultBuilder.paths(stratum.level, IgnitionRunType.StratumRun)
-      if (!stratumPaths.isEmpty) {
-        val stratumFlameAttr = weightedAttributesFunc(stratumPaths)
-        
-      }
     }
-
+    
     resultBuilder.toResult
+  }
+  
+  /**
+   * Carries a sequence of ignition paths and a flag indicating whether any had ignition.
+   */
+  private case class IgnitionPathResult(paths: IndexedSeq[IgnitionPath], isIgnition: Boolean)
+  
+  /**
+   * Runs the ignition path simulation for all species in the given stratum and
+   * returns the best path for each species plus a Boolean 
+   */
+  private def findPlantIgnitionPaths(stratum: Stratum, plantPathFn: (SpeciesComponent, Coord) => IgnitionPath): IgnitionPathResult = {
+      val bestPaths = for {
+        spComp <- stratum.speciesComponents
+      
+        paths = initialCrownIgnitionPoints(spComp.species) map { pos =>
+          plantPathFn(spComp, pos)
+        }
+      } yield (paths reduce selectBestPath)
+        
+      val isIgnition = bestPaths exists (_.hasIgnition)
+      
+      IgnitionPathResult(bestPaths, isIgnition)
   }
 
   /**

@@ -108,11 +108,11 @@ object IgnitionPathBuilder {
     def segments = segmentBuffer.toVector
 
     def addSegment(timeStep: Int, start: Coord, end: Coord) {
-      if (!hasIgnition || timeStep == lastTimeStep + 1)
+      if (!hasIgnition || timeStep == segmentBuffer.last.timeStep + 1)
         segmentBuffer += new IgnitedSegment(timeStep, start, end)
       else
         throw new IllegalArgumentException(
-          s"Time step for ignited segment ($timeStep) should be later than previous time (${lastTimeStep})")
+          s"Time step for ignited segment ($timeStep) should be later than previous time (${segmentBuffer.last.timeStep})")
     }
 
     def numSegments = segmentBuffer.size

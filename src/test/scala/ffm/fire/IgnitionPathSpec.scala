@@ -48,12 +48,6 @@ class IgnitionPathSpec extends FlatSpec with Matchers with MockitoSugar with Opt
     }
   }
   
-  it should "throw a NoSuchElementException for lastTimeStep before ignition has occurred" in {
-    intercept [NoSuchElementException] {
-      newBuilder.lastTimeStep
-    }
-  }
-  
   it should "take the time of the first added segment as ignition time" in {
     val builder = newBuilder
     builder.addSegment(3, c0, pos(1.0))
@@ -69,17 +63,16 @@ class IgnitionPathSpec extends FlatSpec with Matchers with MockitoSugar with Opt
   it should "correctly add segments for consecutive time steps" in {
     val builder = newBuilder
     val time = 1
-    builder.addSegment(time, c0, pos(1.0))
-    builder.addSegment(time + 1, c0, pos(1.0))
-    builder.addSegment(time + 2, pos(1.0), pos(2.0))
-    
-    val expected = List(
+
+    val segments = List(
       new IgnitedSegment(time, c0, pos(1.0)),    
       new IgnitedSegment(time + 1, c0, pos(1.0)),    
       new IgnitedSegment(time + 2, pos(1.0), pos(2.0))  
     )
     
-    builder.segments should contain theSameElementsInOrderAs expected
+    segments foreach (builder.addSegment(_))
+    
+    builder.segments should contain theSameElementsInOrderAs segments
   }
   
   it should "throw an error on adding a segment with a time <= the previous segment" in {
