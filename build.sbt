@@ -11,7 +11,6 @@ scalaVersion := "2.11.2"
 // General dependencies
 //
 libraryDependencies ++= Seq(
-  "org.scala-lang" % "scala-reflect" % scalaVersion.value,
   "org.scala-lang.modules" %% "scala-parser-combinators" % "1.0.1",
   "org.scalautils" % "scalautils_2.11" % "2.1.5",
   "com.vividsolutions" % "jts" % "1.13",
