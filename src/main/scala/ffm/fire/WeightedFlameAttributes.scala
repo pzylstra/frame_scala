@@ -36,12 +36,12 @@ trait WeightedFlameAttributes {
   /**
    * Size of the sequence attributes.
    */
-  def size: Int = flameLengths.size
+  def size: Int
   
   /**
    * Returns true if there is no attribute data.
    */
-  def isEmpty: Boolean = flameLengths.isEmpty
+  def isEmpty: Boolean
 }
 
 /**
@@ -62,8 +62,10 @@ object WeightedFlameAttributes {
     val flameDepths = Vector.empty[Double]
     val origins = Vector.empty[Coord]
     val temperatures = Vector.empty[Double]
+    val size = 0
+    val isEmpty = true
   }
-  
+
   case class NonEmpty(
     timeToLongestFlame: Double,
     flameLengths: Seq[Double],
@@ -71,8 +73,12 @@ object WeightedFlameAttributes {
     origins: Seq[Coord],
     temperatures: Seq[Double]) extends WeightedFlameAttributes {
 
-    require(flameDepths.size == size && origins.size == size && temperatures.size == size,
-      "All attribute sequences must be the same length")
+    val size = flameLengths.size
+
+    require(size > 0 && flameDepths.size == size && origins.size == size && temperatures.size == size,
+      "All attribute sequences must be non-empty and have the same length")
+
+    val isEmpty = false
   }
 
   /**
@@ -123,8 +129,8 @@ object WeightedFlameAttributes {
       }
     }
 
-    val init = Empty
-    val attrs = iter(init, paths)
+    // Launch the helper
+    val attrs = iter(Empty, paths)
 
     // If we have data, finalize the calculation of length-weighted temperatures
     attrs match {
@@ -137,18 +143,22 @@ object WeightedFlameAttributes {
     }
   }
 
-  /** 
-   * Combines data from two weighted attribute objects into a single object. 
+  /**
+   * Combines data from two weighted attribute objects into a single object.
    */
   private def combine(attr1: WeightedFlameAttributes, attr2: WeightedFlameAttributes) = {
     import ffm.util.IndexedSeqUtils._
 
-    NonEmpty(
-      attr1.timeToLongestFlame + attr2.timeToLongestFlame,
-      attr1.flameLengths.combine(attr2.flameLengths, _ + _),
-      attr1.flameDepths.combine(attr2.flameDepths, _ + _),
-      attr1.origins.combine(attr2.origins, (cthis, cthat) => cthis.add(cthat)),
-      attr1.temperatures.combine(attr2.temperatures, _ + _))
+    if (attr1.isEmpty && attr2.isEmpty) Empty
+    else if (attr1.isEmpty) attr2
+    else if (attr2.isEmpty) attr1
+    else
+      NonEmpty(
+        attr1.timeToLongestFlame + attr2.timeToLongestFlame,
+        attr1.flameLengths.combine(attr2.flameLengths, _ + _),
+        attr1.flameDepths.combine(attr2.flameDepths, _ + _),
+        attr1.origins.combine(attr2.origins, (cthis, cthat) => cthis.add(cthat)),
+        attr1.temperatures.combine(attr2.temperatures, _ + _))
   }
 
 }
