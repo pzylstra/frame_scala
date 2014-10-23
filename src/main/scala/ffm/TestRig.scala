@@ -26,10 +26,9 @@ object TestRig extends App {
 
   val result = fireModel.run()
 
-  println( ResultFormatter.format(result) )
+  println(ResultFormatter.format(result))
 
 }
-
 
 object PreIgnitionFormatter {
   val preHeatingDryingHeader =
@@ -64,31 +63,35 @@ object ResultFormatter {
   def formatPath(path: IgnitionPath): String = {
     val buf = new StringBuilder
     val ctxt = path.context
-    
+
     def add(s: String) = buf ++= s + '\n'
 
-    add( s"${ctxt.stratumLevel} ${path.speciesComponent}" )
+    add(s"${ctxt.stratumLevel} ${path.speciesComponent}")
 
-    add( s"Best result for initial point ${path.initialPoint}" )
+    add(s"Best result for initial point ${path.initialPoint}")
 
     val preHeating = path.preIgnitionData.filter(_.isInstanceOf[PreHeatingDrying])
     if (!preHeating.isEmpty) {
-      add( PreIgnitionFormatter.preHeatingDryingHeader )
+      add(PreIgnitionFormatter.preHeatingDryingHeader)
       preHeating foreach { pid =>
-        add( PreIgnitionFormatter(pid) )
+        add(PreIgnitionFormatter(pid))
       }
     }
 
     val incident = path.preIgnitionData.filter(_.isInstanceOf[IncidentDrying])
     if (!incident.isEmpty) {
-      add( PreIgnitionFormatter.incidentDryingHeader )
+      add(PreIgnitionFormatter.incidentDryingHeader)
       incident foreach { pid =>
-        add( PreIgnitionFormatter(pid) )
+        add(PreIgnitionFormatter(pid))
       }
     }
 
-    path.segments foreach { seg =>
-      add( seg.toString )
+    if (path.hasIgnition) {
+      add("\nStartX\tStartY\tEndX\tEndY\tSegLen")
+
+      path.segments foreach { seg =>
+        add(f"${seg.start.x}%.2f\t${seg.start.y}%.2f\t${seg.end.x}%.2f\t${seg.end.y}%.2f\t${seg.length}%.2f")
+      }
     }
 
     buf.toString

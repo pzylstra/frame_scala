@@ -1,6 +1,6 @@
-package ffm.macros
+package ffm.macros.devel
 
-import scala.language.experimental.macros
+import scala.language.experimental.macros 
 import scala.reflect.macros.blackbox.Context
 
 /**

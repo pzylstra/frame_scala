@@ -53,7 +53,6 @@ class SpikeIgnitionPathModel extends IgnitionPathModel {
         else preHeatingFlames.init
 
       val plantFlames = ArrayBuffer.empty[Flame]
-      val ignitedSegments = ArrayBuffer
 
       var iPt = initialPoint
       
