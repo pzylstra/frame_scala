@@ -1,23 +1,27 @@
 package ffm.fire
 
-import scala.collection.mutable
 import ffm.ModelSettings._
-import ffm.forest.Site
-import ffm.forest.Species
-import ffm.forest.SpeciesComponent
-import ffm.forest.Stratum
-import ffm.forest.StratumLevel
-import ffm.forest.VegetationWindModel
-import ffm.geometry.Coord
-import ffm.geometry.CrownPoly
-import ffm.geometry.Ray
-import ffm.geometry.Line
+import ffm.forest._
+import ffm.geometry._
 
 trait FireModel {
   def run(): FireModelResult
 }
 
-case class FireModelResult(paths: IndexedSeq[IgnitionPath])
+/**
+ * Holds ignition paths and flame series generated from plant and stratum
+ * ignition runs.
+ */
+class FireModelResult(val paths: IndexedSeq[IgnitionPath], val flameSeriess: IndexedSeq[StratumFlameSeries]) {
+  /** Creates an empty instance. */
+  def this() = this(Vector.empty, Vector.empty)
+
+  /** Adds ignition paths. */
+  def add(newPaths: IndexedSeq[IgnitionPath]) = new FireModelResult(paths ++ newPaths, flameSeriess)
+
+  /** Adds a flame series. */
+  def add(newSeries: StratumFlameSeries) = new FireModelResult(paths, flameSeriess :+ newSeries)
+}
 
 class SingleSiteFireModel(pathModel: IgnitionPathModel, plantFlameModel: PlantFlameModel)(site: Site, includeCanopy: Boolean, fireLineLength: Double) extends FireModel {
 
@@ -41,23 +45,68 @@ class SingleSiteFireModel(pathModel: IgnitionPathModel, plantFlameModel: PlantFl
   }
 
   /**
+   * Records and tests connections between strata.
+   */
+  class FlameConnections(connectedLevels: Set[StratumLevel]) {
+    /** Creates an empty instance. */
+    def this() = this(Set.empty)
+
+    /** Creates a new object with the given stratum set as connected to higher strata. */
+    def add(s: Stratum) = new FlameConnections(connectedLevels + s.level)
+
+    /** Tests whether two strata are connected. */
+    def isConnected(lower: Stratum, upper: Stratum) =
+      connectedLevels.contains(lower.level) || site.vegetation.isVerticalAssociation(lower, upper)
+  }
+
+  /**
+   * Holds results from a plant or stratum ignition run.
+   */
+  class IgnitionRunResult(
+    val stratum: Stratum,
+    val paths: IndexedSeq[IgnitionPath],
+    val isIgnition: Boolean,
+    val flameAttr: WeightedFlameAttributes) {
+
+    /** Returns paths in which ignition occurred. */
+    def pathsWithIgnition = paths filter (_.hasIgnition)
+  }
+
+  /**
    * Runs the fire model.
    */
   def run(): FireModelResult = {
-    val ignitionPathBuf = mutable.ArrayBuffer.empty[IgnitionPath]
-    val flameConnections = new FlameConnections
+    val initPreHeatingFlame = PreHeatingFlame(
+      surfaceFlames.head,
+      StratumLevel.Surface,
+      startTime = 0,
+      endTime = site.surface.flameResidenceTime)
 
-    val preHeatingFlames = mutable.ArrayBuffer(
-      PreHeatingFlame(surfaceFlames.head, StratumLevel.Surface, startTime = 0, endTime = site.surface.flameResidenceTime))
+    processStrata(
+      site.vegetation.strata,
+      Vector(initPreHeatingFlame),
+      preHeatingEndTime = -1, // TODO: can we get rid of this magic initial value ?
+      new FlameConnections(),
+      new FireModelResult())
+  }
 
-    val allSpeciesWeightedFlameSeries = mutable.ArrayBuffer.empty[StratumFlameSeries]
+  /**
+   * Models ignition paths and flame series for strata recursively.
+   */
+  def processStrata(
+    strata: IndexedSeq[Stratum],
+    preHeatingFlames: IndexedSeq[PreHeatingFlame],
+    preHeatingEndTime: Double,
+    flameConnections: FlameConnections,
+    curData: FireModelResult): FireModelResult = {
 
-    // FIXME - Get rid of these vars by making this block recursive
-    var preHeatingEndTime = -1.0
-    var cumulativePreHeatingStartTime = 0.0
+    if (strata.isEmpty) {
+      // All done - return accumulated results
+      curData
 
-    for (stratum <- site.vegetation.strata) {
-      val incidentFlames = createIncidentFlames(stratum, flameConnections, allSpeciesWeightedFlameSeries)
+    } else {
+      val stratum = strata.head
+      val incidentFlames = createIncidentFlames(stratum, flameConnections, curData.flameSeriess)
       val stratumWindSpeed = VegetationWindModel.windSpeedAtHeight(stratum.averageMidHeight, site, includeCanopy)
 
       val plantRunContext = IgnitionContext(
@@ -68,34 +117,38 @@ class SingleSiteFireModel(pathModel: IgnitionPathModel, plantFlameModel: PlantFl
         incidentFlames,
         preHeatingEndTime,
         canopyHeatingDistance = 0.0,
-        stratumWindSpeed
-        )
+        stratumWindSpeed)
 
       val plantRunResult = findPlantIgnitionPaths(stratum, plantRunContext)
-      ignitionPathBuf ++= plantRunResult.paths
 
-      if (plantRunResult.isIgnition) {
-        if (plantRunResult.pathsWithIgnition exists (path => isFlameBeyondCrown(path, stratumWindSpeed)))
-          flameConnections.add(stratum)
+      if (!plantRunResult.isIgnition) {
+        /*
+           * Nothing more to do for this stratum.
+           * Add the paths (which will have pre-ignition data) to the accumulator
+           * and process the remaining strata. 
+           */
+        processStrata(
+          strata.tail,
+          preHeatingFlames,
+          preHeatingEndTime,
+          flameConnections,
+          curData add plantRunResult.paths)
 
+      } else {
         val plantFlames = getPlantFlames(plantRunResult, stratumWindSpeed)
 
-        cumulativePreHeatingStartTime += plantRunResult.flameAttr.timeToLongestFlame
-        preHeatingEndTime = cumulativePreHeatingStartTime
-
         val canopyHeatingDistance =
-          if (stratum.level == StratumLevel.Canopy) calculateCanopyHeatingDistance(stratum, allSpeciesWeightedFlameSeries)
+          if (stratum.level == StratumLevel.Canopy) calculateCanopyHeatingDistance(stratum, curData.flameSeriess)
           else 0.0
-          
+
         val stratumRunContext = plantRunContext.copy(
           runType = IgnitionRunType.StratumRun,
           preHeatingFlames = Vector.empty,
-          incidentFlames = plantFlames,
           preHeatingEndTime = 0.0,
+          incidentFlames = plantFlames,
           canopyHeatingDistance = canopyHeatingDistance)
 
         val stratumRunResult = findStratumIgnitionPaths(stratum, stratumRunContext, plantFlames.head)
-        ignitionPathBuf ++= stratumRunResult.paths
 
         val stratumFlames = getStratumFlames(stratumRunResult, stratumWindSpeed)
 
@@ -105,11 +158,6 @@ class SingleSiteFireModel(pathModel: IgnitionPathModel, plantFlameModel: PlantFl
 
         val flameSeries = new StratumFlameSeries(stratum, bigFlames)
 
-        allSpeciesWeightedFlameSeries += flameSeries
-
-        preHeatingFlames += createPreHeatingFlame(
-            flameSeries, startTime = cumulativePreHeatingStartTime, windSpeed = stratumWindSpeed)
-            
         /*
          * TODO: logic for connection based on comparing max plant flame length to max stratum flame length.
          * 
@@ -117,39 +165,46 @@ class SingleSiteFireModel(pathModel: IgnitionPathModel, plantFlameModel: PlantFl
          * 
          * Ask Phil about this.
          */
+
+        // guard against magic -1 value for preHeatingEndTime (TODO - get rid of that)
+        val preHeatingStartTime = (preHeatingEndTime max 0) + plantRunResult.flameAttr.timeToLongestFlame
+
+        val nextPHFlame = createPreHeatingFlame(
+          flameSeries, 
+          startTime = preHeatingStartTime, 
+          windSpeed = stratumWindSpeed)
+
+        val nextConnections =
+          if (plantRunResult.pathsWithIgnition exists (path => isFlameBeyondCrown(path, stratumWindSpeed)))
+            flameConnections add stratum
+          else
+            flameConnections
+
+        processStrata(
+          strata.tail,
+          preHeatingFlames :+ nextPHFlame,
+          preHeatingEndTime = preHeatingStartTime,
+          nextConnections,
+          curData add plantRunResult.paths add stratumRunResult.paths add flameSeries)
       }
     }
-
-    FireModelResult(ignitionPathBuf.toVector)
   }
-  
 
-  /**
-   * Holds results from a plant or stratum ignition run.
-   */
-  private case class IgnitionRunResult(stratum: Stratum, paths: IndexedSeq[IgnitionPath], isIgnition: Boolean, flameAttr: WeightedFlameAttributes) {
-    
-    def pathsWithIgnition = paths filter (_.hasIgnition)
-  
-  }
-  
-  /**
-   * Records flame connections between strata.
-   */
-  private class FlameConnections {
-    private val connectedLevels = mutable.Set.empty[StratumLevel]
-    
-    def add(s: Stratum) {
-      connectedLevels += s.level
-    }
+  /** Finds maximum length of a flame in the given collection (0 if empty). */
+  private def maxFlameLength(flames: IndexedSeq[Flame]) =
+    flames.foldLeft(0.0)((len, flame) => len max flame.flameLength)
 
-    def isConnected(lower: Stratum, upper: Stratum) =
-      connectedLevels.contains(lower.level) || site.vegetation.isVerticalAssociation(lower, upper)
+  /** Creates a new pre-heating flame based on the given flame series. */
+  private def createPreHeatingFlame(flameSeries: StratumFlameSeries, startTime: Double, windSpeed: Double) = {
+    val angle = Flame.windEffectFlameAngle(flameSeries.meanFlameLength, windSpeed, site.slope)
+    val flame = Flame(flameSeries.meanFlameLength, angle, flameSeries.meanOrigin, flameSeries.meanDepthIgnited, flameSeries.meanDeltaTemperature)
+    val endTime = startTime + flameSeries.size * ComputationTimeInterval
+    PreHeatingFlame(flame, flameSeries.stratum.level, startTime, endTime)
   }
 
   /**
    * Returns flames generated from a plant ignition run.
-   * 
+   *
    * If there was no ignition an empty collection is returned.
    */
   private def getPlantFlames(plantRunResult: IgnitionRunResult, stratumWindSpeed: Double): IndexedSeq[Flame] = {
@@ -157,7 +212,7 @@ class SingleSiteFireModel(pathModel: IgnitionPathModel, plantFlameModel: PlantFl
     else {
       val avWidth = plantRunResult.stratum.averageWidth
       val plantSep = plantRunResult.stratum.modelPlantSep
-      
+
       val mergedFlameLengths = plantRunResult.flameAttr.flameLengths map { flen =>
         Flame.lateralMergedFlameLength(flen, fireLineLength, avWidth, plantSep)
       }
@@ -172,9 +227,9 @@ class SingleSiteFireModel(pathModel: IgnitionPathModel, plantFlameModel: PlantFl
     }
   }
 
-  /** 
+  /**
    * Returns flames generated from a stratum ignition run.
-   * 
+   *
    * If there was no ignition an empty collection is returned.
    */
   private def getStratumFlames(stratumRunResult: IgnitionRunResult, stratumWindSpeed: Double): IndexedSeq[Flame] = {
@@ -185,30 +240,30 @@ class SingleSiteFireModel(pathModel: IgnitionPathModel, plantFlameModel: PlantFl
         val angle = Flame.windEffectFlameAngle(attr.flameLengths(i), stratumWindSpeed, site.slope)
         Flame(attr.flameLengths(i), angle, attr.origins(i), attr.flameDepths(i), attr.temperatures(i))
       }
-      
+
       flames
     }
   }
-  
+
   /**
    * Runs the ignition path simulation for all species in the given stratum.
    */
   private def findPlantIgnitionPaths(stratum: Stratum, context: IgnitionContext): IgnitionRunResult = {
     // Create function to generate ignition paths
     val pathFn = pathModel.generatePath(context, plantFlameModel) _
-    
+
     // Simulate paths for each species in the stratum, selecting the 'best'
     // path for each
     val bestPaths = stratum.speciesComponents map { spComp =>
       val initPts = initialCrownIgnitionPoints(spComp.species)
-      val paths = initPts map ( p => pathFn(spComp, p) )
+      val paths = initPts map (p => pathFn(spComp, p))
       paths reduce selectBestPath
     }
 
     val isIgnition = bestPaths exists (_.hasIgnition)
     val flameAttr = WeightedFlameAttributes(plantFlameModel)(bestPaths)
 
-    IgnitionRunResult(stratum, bestPaths, isIgnition, flameAttr)
+    new IgnitionRunResult(stratum, bestPaths, isIgnition, flameAttr)
   }
 
   /**
@@ -220,7 +275,7 @@ class SingleSiteFireModel(pathModel: IgnitionPathModel, plantFlameModel: PlantFl
     val ray = Ray(referenceFlame.origin, referenceFlame.angle)
     val crossing = stratumCrown.intersection(ray)
 
-    if (crossing.isEmpty) IgnitionRunResult(stratum, Vector.empty, false, WeightedFlameAttributes.Empty)
+    if (crossing.isEmpty) new IgnitionRunResult(stratum, Vector.empty, false, WeightedFlameAttributes.Empty)
     else {
       val pathFn = pathModel.generatePath(context, plantFlameModel) _
       val initialPt = crossing.get.start
@@ -235,8 +290,8 @@ class SingleSiteFireModel(pathModel: IgnitionPathModel, plantFlameModel: PlantFl
       val isIgnition = paths exists (_.hasIgnition)
 
       val flameAttr = WeightedFlameAttributes(plantFlameModel)(paths)
-      
-      IgnitionRunResult(stratum, paths, isIgnition, flameAttr)
+
+      new IgnitionRunResult(stratum, paths, isIgnition, flameAttr)
     }
   }
 
@@ -251,12 +306,11 @@ class SingleSiteFireModel(pathModel: IgnitionPathModel, plantFlameModel: PlantFl
     if (a.hasIgnition) {
       if (b.hasIgnition) if (b.maxSegmentLength > a.maxSegmentLength) b else a
       else a
-    }
-    else if (b.hasIgnition) b
+    } else if (b.hasIgnition) b
     else if (b.maxDryingTemperature > a.maxDryingTemperature) b else a
   }
 
-/**
+  /**
    * Creates an artificial crown for a stratum flame run.
    */
   def createStratumCrown(stratum: Stratum): CrownPoly = {
@@ -330,12 +384,6 @@ class SingleSiteFireModel(pathModel: IgnitionPathModel, plantFlameModel: PlantFl
   }
 
   /**
-   * Finds the maximum flame length in a collection of flames.
-   */
-  private def maxFlameLength(flames: IndexedSeq[Flame]): Double =
-    flames.foldLeft(0.0)((len, flame) => len max flame.flameLength)
-
-  /**
    * Creates a vector of incident flames for the given stratum.
    *
    * Compute incident flames for this stratum from surface flames and the
@@ -391,20 +439,6 @@ class SingleSiteFireModel(pathModel: IgnitionPathModel, plantFlameModel: PlantFl
       combinedFlames
     }
   }
-
-  /**
-   * Creates a PreHeatingFlame based on the given flame series.
-   */
-  private def createPreHeatingFlame(flameSeries: StratumFlameSeries, startTime: Double, windSpeed: Double) = {
-    val mfl = flameSeries.meanFlameLength
-    val angle = Flame.windEffectFlameAngle(mfl, windSpeed, site.slope)
-    val flame = Flame(mfl, angle, flameSeries.meanOrigin, flameSeries.meanDepthIgnited, flameSeries.meanDeltaTemperature)
-    val endTime = startTime + flameSeries.size * ComputationTimeInterval
-
-    PreHeatingFlame(flame, flameSeries.stratum.level, startTime, endTime)
-  }
-
-
 
   /**
    * Calculates canopy heating distance given the canopy stratum and the collection
