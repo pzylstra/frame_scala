@@ -14,6 +14,9 @@ import ffm.forest.{ Species, SpeciesComponent }
  * number of segments in any path.
  */
 trait WeightedFlameAttributes {
+  /** Weighted average time of ignition (zero if no data). */
+  def ignitionTime: Double
+  
   /** Weighted average time from ignition to maximum flame length (zero if no data). */
   def timeToLongestFlame: Double
   
@@ -57,6 +60,7 @@ trait WeightedFlameAttributes {
 object WeightedFlameAttributes {
   
   object Empty extends WeightedFlameAttributes {
+    val ignitionTime = 0.0
     val timeToLongestFlame = 0.0
     val flameLengths = Vector.empty[Double]
     val flameDepths = Vector.empty[Double]
@@ -67,6 +71,7 @@ object WeightedFlameAttributes {
   }
 
   case class NonEmpty(
+    ignitionTime: Double,
     timeToLongestFlame: Double,
     flameLengths: Seq[Double],
     flameDepths: Seq[Double],
@@ -111,6 +116,7 @@ object WeightedFlameAttributes {
         val segments = path.segmentsByLengthAndTime 
         val SpeciesComponent(species, wt) = path.speciesComponent
 
+        val ignitionTime = path.ignitionTime * wt
         val timeToMaxLen = path.timeFromIgnitionToMaxLength * wt
 
         val lengths = segments.map(seg => plantFlameModel.flameLength(species, seg.length) * wt)
@@ -123,7 +129,7 @@ object WeightedFlameAttributes {
 
         val temps = lengths.map(_ * t)
 
-        val attrs = NonEmpty(timeToMaxLen, lengths, depths, origins, temps)
+        val attrs = NonEmpty(ignitionTime, timeToMaxLen, lengths, depths, origins, temps)
 
         iter(combine(curAttrs, attrs), curPaths.tail)
       }
@@ -154,6 +160,7 @@ object WeightedFlameAttributes {
     else if (attr2.isEmpty) attr1
     else
       NonEmpty(
+        attr1.ignitionTime + attr2.ignitionTime,
         attr1.timeToLongestFlame + attr2.timeToLongestFlame,
         attr1.flameLengths.combine(attr2.flameLengths, _ + _),
         attr1.flameDepths.combine(attr2.flameDepths, _ + _),

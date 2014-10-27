@@ -4,30 +4,34 @@ import scala.util.{ Failure, Success }
 import ffm.io._
 import ffm.fire._
 
-object TestRig extends App {
+object TestRig {
 
-  val path = "c:/michael/coding/cpp/forest_flammability_model/56a.txt"
-  val modelDef = ParamFileParser.readTextFormatFile(path).get
+  val defaultPath = "c:/michael/coding/cpp/forest_flammability_model/56a.txt"
+  
+  def main(args: Array[String]) {
 
-  // get fallback value for dead leaf moisture from the surface 
-  // dead fuel moisture parameter
-  val deadFuelMoisture = new ValueAssignments(modelDef.params).dval("surface dead fuel moisture content")
-  val fallback = FallbackProvider(Map("deadLeafMoisture" -> deadFuelMoisture))
+    val path = if (args.length == 1) args(0) else defaultPath
+    val modelDef = ParamFileParser.readTextFormatFile(path).get
 
-  // create the site
-  val site = SingleSiteFactory.create(modelDef, fallback) match {
-    case Success(site) => site
-    case Failure(t) => throw t
+    // get fallback value for dead leaf moisture from the surface 
+    // dead fuel moisture parameter
+    val deadFuelMoisture = new ValueAssignments(modelDef.params).dval("surface dead fuel moisture content")
+    val fallback = FallbackProvider(Map("deadLeafMoisture" -> deadFuelMoisture))
+
+    // create the site
+    val site = SingleSiteFactory.create(modelDef, fallback) match {
+      case Success(site) => site
+      case Failure(t) => throw t
+    }
+
+    // run the fire model
+    val pathModel = new SpikeIgnitionPathModel
+    val fireModel = new SingleSiteFireModel(pathModel, DefaultPlantFlameModel)(site, true, 100.0)
+
+    val result = fireModel.run()
+
+    println(ResultFormatter.format(result))
   }
-
-  // run the fire model
-  val pathModel = new SpikeIgnitionPathModel
-  val fireModel = new SingleSiteFireModel(pathModel, DefaultPlantFlameModel)(site, true, 100.0)
-
-  val result = fireModel.run()
-
-  println(ResultFormatter.format(result))
-
 }
 
 object PreIgnitionFormatter {
