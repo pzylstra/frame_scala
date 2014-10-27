@@ -99,7 +99,7 @@ object Species {
    */
   def isGrass(sp: Species, stratumLevel: StratumLevel): Boolean =
     stratumLevel == StratumLevel.NearSurface &&
-      sp.propDead > 0.5 &&
+      Numerics.geq(sp.propDead, 0.5) &&
       sp.leafThickness < 0.00035
 
   /**

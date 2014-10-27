@@ -269,7 +269,7 @@ object Flame {
    * Lowest origin of two flames.
    */
   def lowestOrigin(flame1: Flame, flame2: Flame): Coord =
-    if (flame1.origin.y < flame2.origin.y) flame1.origin else flame2.origin
+    if (flame1.origin.y <= flame2.origin.y) flame1.origin else flame2.origin
     
   /**
    * Average temperature of two flames weighted by flame length.

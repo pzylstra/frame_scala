@@ -387,8 +387,8 @@ class SingleSiteFireModel(pathModel: IgnitionPathModel, plantFlameModel: PlantFl
    * Creates a vector of incident flames for the given stratum.
    *
    * Compute incident flames for this stratum from surface flames and the
-   * flames from lower strata. Only include lower strata that have a connection
-   * with this stratum.
+   * flames from lower strata. Only include lower strata which have a connection
+   * to this stratum.
    */
   private def createIncidentFlames(
     stratum: Stratum,
@@ -411,15 +411,15 @@ class SingleSiteFireModel(pathModel: IgnitionPathModel, plantFlameModel: PlantFl
 
       // Calculate a flame-weighted wind speed
       val initLen = surfaceFlames.head.flameLength
-      val initWind = surfaceWindSpeed * surfaceFlames.head.flameLength
+      val initWind = surfaceWindSpeed * initLen
 
       val (finalLen, finalWind) =
         lowerActiveStrata.foldLeft((initLen, initWind)) {
           case ((curLen, curWind), lower) =>
-            val fs = flameSeriesByLevel(lower.level)
-
-            (curLen + fs.cappedMaxFlameLength,
-              curWind + fs.cappedMaxFlameLength * VegetationWindModel.windSpeedAtHeight(lower.averageMidHeight, site, includeCanopy))
+            val flameLen = flameSeriesByLevel(lower.level).cappedMaxFlameLength 
+            val windSp = VegetationWindModel.windSpeedAtHeight(lower.averageMidHeight, site, includeCanopy)
+            
+            (curLen + flameLen, curWind + flameLen * windSp)
         }
 
       val flameWeightedWindSpeed = if (finalLen > 0) finalWind / finalLen else 0.0
