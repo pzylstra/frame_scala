@@ -114,7 +114,7 @@ class SpikeIgnitionPathModel extends IgnitionPathModel {
             //the possible ignition distance is divided into numPenetrationSteps segments and we test each
             //segment in turn for ignition
             val stepDist = pathLength / NumPenetrationSteps
-            val testPoints = (stepDist to pathLength by stepDist) map (d => iPt.toBearing(pathAngle, d))
+            val testPoints = (1 to NumPenetrationSteps) map (i => iPt.toBearing(pathAngle, i * stepDist))
 
             PointLoop.breakable {
               var isFirstTestPoint = true
