@@ -68,8 +68,8 @@ case class Surface(
     else {
       val s = math.max(0.0, math.min(ModelSettings.MaxSlopeForSurfaceROS, slope))
       val term1 = 0.42088 * math.pow(surfaceWindSpeed, 2.22) + 0.071
-      val term2 = (10.8 + 3.3192 * deadFuelMoistureProp) * math.exp(3.9534 * s)
-      thicknessMultiplier * term1 / term2
+      val term2 = (10.8 + 3.3192 * deadFuelMoistureProp)
+      thicknessMultiplier * (term1 / term2) * math.exp(3.9534 * s)
     }
 
   /**

@@ -106,7 +106,7 @@ class SpikeIgnitionPathModel extends IgnitionPathModel {
               else (maxIncidentPath, incidentFlame.get.angle)
 
             val locatedPreHeatingFlames = activePreHeatingFlames map { phf =>
-              val origin = locateFlameOrigin(phf.flame.origin, phf.flame.angle, ePt)
+              val origin = locateFlameOrigin(phf.flame, ePt)
               val newFlame = phf.flame.toOrigin(origin)
               phf.copy(flame = newFlame)
             }
@@ -148,7 +148,7 @@ class SpikeIgnitionPathModel extends IgnitionPathModel {
 
                   for (i <- 1 to N) {
                     val flame = incidentFlames(i - 1)
-                    val d = locateFlameOrigin(flame.origin, flame.angle, iPt).distanceTo(testPt)
+                    val d = locateFlameOrigin(flame, iPt).distanceTo(testPt)
                     val t = flame.plumeTemperature(d, site.temperature)
                     dryingFactor *= math.max(0.0, 1.0 - ComputationTimeInterval / calculateIDT(t))
                   }
@@ -166,7 +166,7 @@ class SpikeIgnitionPathModel extends IgnitionPathModel {
 
                 val incidentTemp = (for {
                   flame <- incidentFlame
-                  origin = locateFlameOrigin(flame.origin, flame.angle, iPt)
+                  origin = locateFlameOrigin(flame, iPt)
                   d = origin.distanceTo(testPt)
                   t = flame.plumeTemperature(d, site.temperature)
                 } yield t).getOrElse(0.0)
@@ -182,7 +182,7 @@ class SpikeIgnitionPathModel extends IgnitionPathModel {
 
                 if (iPt == initialPoint && isFirstTestPoint && incidentFlame.isDefined) {
                   val flame = incidentFlame.get
-                  val d = locateFlameOrigin(flame.origin, flame.angle, iPt).distanceTo(testPt)
+                  val d = locateFlameOrigin(flame, iPt).distanceTo(testPt)
 
                   pathBuilder.recordIncidentFlameDrying(
                     time = timeStep,
@@ -318,15 +318,15 @@ class SpikeIgnitionPathModel extends IgnitionPathModel {
      * Returns an origin that a flame has if its plume is to pass
      * through a given point.
      */
-    def locateFlameOrigin(basePoint: Coord, baseAngle: Double, targetPoint: Coord): Coord = {
+    def locateFlameOrigin(flame: Flame, targetPoint: Coord): Coord = {
       runType match {
         case PlantRun =>
-          val surfaceLine = Line(basePoint, site.slope)
+          val surfaceLine = Line(flame.origin, site.slope)
 
-          surfaceLine.originOnLine(targetPoint, baseAngle).getOrElse(
+          surfaceLine.originOnLine(targetPoint, flame.angle).getOrElse(
             throw new Error("Unable to find flame origin"))
 
-        case StratumRun => basePoint
+        case StratumRun => flame.origin
       }
     }
 
