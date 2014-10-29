@@ -167,7 +167,10 @@ class SingleSiteFireModel(pathModel: IgnitionPathModel, plantFlameModel: PlantFl
          */
 
         // guard against magic -1 value for preHeatingEndTime (TODO - get rid of that)
-        val preHeatingStartTime = plantRunResult.flameAttr.ignitionTime + plantRunResult.flameAttr.timeToLongestFlame
+        val preHeatingStartTime = 
+          (preHeatingEndTime max 0.0) + 
+          plantRunResult.flameAttr.ignitionTime + 
+          plantRunResult.flameAttr.timeToLongestFlame
 
         val nextPHFlame = createPreHeatingFlame(
           flameSeries, 
