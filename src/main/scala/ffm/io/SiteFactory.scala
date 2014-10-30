@@ -33,29 +33,33 @@ object SingleSiteFactory {
     Try(tries map (_.get))
   }
 
+  /**
+   * Builds StratumOverlap objects based on input model parameters.
+   */
   private def loadOverlaps(modelDef: ModelDef): List[StratumOverlap] = {
     import ExpressionSyntax._
-    
-    val ovParams = modelDef.params collect { 
-      case param: ValueAssignment if param.varName.value == "overlapping" => param 
+
+    // Overlap parameters will all have the same name: "overlapping"
+    val ovParams = modelDef.params collect {
+      case param: ValueAssignment if param.varName.value == "overlapping" => param
     }
 
-    val ovValues = ovParams map {
-      case ValueAssignment(name, ListText(values)) =>
-        val List(s1, s2, ot) = (values map (_.value))
-        
-        val level1 = StratumLevel(s1)
-        val level2 = StratumLevel(s2)
-        
-        val (lower, upper) = 
-          if (level1 < level2) (level1, level2)
-          else (level2, level1)
-          
-        val ovtype = StratumOverlapType(ot)
-        
-        StratumOverlap(lower, upper, ovtype)
+    if (ovParams.isEmpty) List.empty
+    else {
+      ovParams map { case ValueAssignment(_, ListText(items)) =>
+          val List(s1, s2, ot) = items map (_.value)
+
+          val level1 = StratumLevel(s1)
+          val level2 = StratumLevel(s2)
+
+          val (lower, upper) =
+            if (level1 < level2) (level1, level2)
+            else (level2, level1)
+
+          val ovtype = StratumOverlapType(ot)
+
+          StratumOverlap(lower, upper, ovtype)
+      }
     }
-    
-    ovValues
   }
 }

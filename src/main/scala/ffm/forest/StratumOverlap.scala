@@ -12,8 +12,8 @@ object StratumOverlapType {
    * Ignores case and any surrounding or embedded spaces and hyphens.
    *
    * {{{
-   * val ov1 = StratmOverlapType("not overlapping")
-   * val ov2 = StratumOverlapType("notoverlapping")
+   * val ov1 = StratmOverlapType("not overlapped")
+   * val ov2 = StratumOverlapType("notoverlapped")
    *
    * ov1 == ov2  // will be `true`
    * }}}
