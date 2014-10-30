@@ -6,7 +6,7 @@ import ffm.numerics.RoundedDoubleSortedSet
  * Represents a stand of vegetation, consisting of strata and
  * optional data on their overlaps.
  */
-class Vegetation(val strata: IndexedSeq[Stratum], overlaps: IndexedSeq[Overlap]) {
+class Vegetation(val strata: IndexedSeq[Stratum], overlaps: IndexedSeq[StratumOverlap]) {
   
   /** Strata indexed by StatumLevel. */
   val strataByLevel: Map[StratumLevel, Stratum] =
@@ -85,13 +85,13 @@ class Vegetation(val strata: IndexedSeq[Stratum], overlaps: IndexedSeq[Overlap])
       if (s1.level < s2.level) (s1, s2)
       else (s2, s1)
       
-    def getOverlap =
+    val ovtype =
       overlaps find (ov => ov.lower == lower && ov.upper == upper) match {
         case Some(ov) => ov.overlapType
         case None => Undefined
       }
 
-    getOverlap match {
+    ovtype match {
       case Overlapping => true
       case NotOverlapping => false
       case Undefined => lower.averageTop <= upper.averageBottom
@@ -101,6 +101,6 @@ class Vegetation(val strata: IndexedSeq[Stratum], overlaps: IndexedSeq[Overlap])
 }
 
 object Vegetation {
-  def apply(strata: Seq[Stratum], overlaps: Seq[Overlap]): Vegetation =
+  def apply(strata: Seq[Stratum], overlaps: Seq[StratumOverlap]): Vegetation =
     new Vegetation(strata.toVector, overlaps.toVector)
 }

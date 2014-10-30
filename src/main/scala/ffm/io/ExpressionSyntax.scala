@@ -15,7 +15,7 @@ object ExpressionSyntax {
    * Type class to restrict expression values to acceptable types:
    * Int, Double, String.
    */
-  @implicitNotFound("No member of ValueLike is available for type ${A}")
+  @implicitNotFound("Type ${A} is not a valid for parameter expressions")
   trait ValueLike[A]
 
   object ValueLike {
