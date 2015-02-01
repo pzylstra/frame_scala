@@ -4,25 +4,9 @@ import ffm.ModelSettings._
 import ffm.forest._
 import ffm.geometry._
 
-trait FireModel {
-  def run(): FireModelResult
-}
-
 /**
- * Holds ignition paths and flame series generated from plant and stratum
- * ignition runs.
+ * Models fire in a single site.
  */
-class FireModelResult(val paths: IndexedSeq[IgnitionPath], val flameSeriess: IndexedSeq[StratumFlameSeries]) {
-  /** Creates an empty instance. */
-  def this() = this(Vector.empty, Vector.empty)
-
-  /** Adds ignition paths. */
-  def add(newPaths: IndexedSeq[IgnitionPath]) = new FireModelResult(paths ++ newPaths, flameSeriess)
-
-  /** Adds a flame series. */
-  def add(newSeries: StratumFlameSeries) = new FireModelResult(paths, flameSeriess :+ newSeries)
-}
-
 class SingleSiteFireModel(pathModel: IgnitionPathModel, plantFlameModel: PlantFlameModel)(site: Site, includeCanopy: Boolean, fireLineLength: Double) extends FireModel {
 
   val surfaceWindSpeed = VegetationWindModel.surfaceWindSpeed(site, includeCanopy)

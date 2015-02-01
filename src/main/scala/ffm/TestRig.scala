@@ -3,14 +3,16 @@ package ffm
 import scala.util.{ Failure, Success }
 import ffm.io._
 import ffm.fire._
+import ffm.util.FileUtils
 
 object TestRig {
 
-  val defaultPath = "c:/michael/coding/cpp/forest_flammability_model/56a.txt"
+  val defaultInPath = "c:/michael/coding/cpp/forest_flammability_model/5.txt"
+  val defaultOutDir = "c:/michael/coding/ffm/testing"
   
   def main(args: Array[String]) {
 
-    val path = if (args.length == 1) args(0) else defaultPath
+    val path = if (args.length == 1) args(0) else defaultInPath
     val modelDef = ParamFileParser.readTextFormatFile(path).get
 
     // get fallback value for dead leaf moisture from the surface 
@@ -26,11 +28,23 @@ object TestRig {
 
     // run the fire model
     val pathModel = new SpikeIgnitionPathModel
-    val fireModel = new SingleSiteFireModel(pathModel, DefaultPlantFlameModel)(site, true, 100.0)
+    val fireModel = new SingleSiteFireModel(pathModel, DefaultPlantFlameModel)(site, includeCanopy=true, 100.0)
 
     val result = fireModel.run()
 
-    println(ResultFormatter.format(result))
+    val output = ResultFormatter.format(result)
+    println(output)
+    
+    val outPath = {
+      import FileUtils._
+      for {
+        inName <- fileName(path)
+        outName = removeExtension(inName) + "_scala_out.txt"
+      } yield makePath(defaultOutDir, outName)
+    }
+    
+    if (outPath.isDefined) 
+      FileUtils.withPrintWriter(outPath.get) { writer => writer.println(output) }
   }
 }
 
