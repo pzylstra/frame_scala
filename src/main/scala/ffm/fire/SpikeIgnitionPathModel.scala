@@ -39,7 +39,7 @@ class SpikeIgnitionPathModel extends IgnitionPathModel {
     def preHeatingFlames = context.preHeatingFlames
     def incidentFlames = context.incidentFlames
     def stratumWindSpeed = context.stratumWindSpeed
-
+    
     /**
      * Runs the path simulation and returns an IgnitionResult.
      */
@@ -98,7 +98,7 @@ class SpikeIgnitionPathModel extends IgnitionPathModel {
 
           //if there is any more of the plant to burn then compute ignition for the next time step
           var ePt = iPt
-          if (maxIncidentPath > 0 || maxPlantPath > 0) {
+          if (Numerics.gt(maxIncidentPath, 0.0) || Numerics.gt(maxPlantPath, 0.0)) {
             //the direction and max possible extent of the next ignition segment is determined by 
             //whichever path has the greatest length
             val (pathLength, pathAngle) =
@@ -118,9 +118,14 @@ class SpikeIgnitionPathModel extends IgnitionPathModel {
 
             PointLoop.breakable {
               var isFirstTestPoint = true
+              
+              var stepNum = 0;  // debug
+              
               for (testPt <- testPoints) {
                 var dryingFactor = 1.0
                 var dryingTemp = site.temperature
+                
+                stepNum += 1  // debug
 
                 //compute the drying at testPt from preheating flames. NOTE that we have already popped the last
                 //of the preheating flames off the vector because that level will provide the direct heating

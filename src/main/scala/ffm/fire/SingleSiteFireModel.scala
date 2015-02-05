@@ -3,6 +3,7 @@ package ffm.fire
 import ffm.ModelSettings._
 import ffm.forest._
 import ffm.geometry._
+import ffm.numerics.Numerics
 
 /**
  * Models fire in a single site.
@@ -244,7 +245,7 @@ class SingleSiteFireModel(pathModel: IgnitionPathModel, plantFlameModel: PlantFl
     val bestPaths = stratum.speciesComponents map { spComp =>
       val initPts = initialCrownIgnitionPoints(spComp.species)
       val paths = initPts map (p => pathFn(spComp, p))
-      paths reduce selectBestPath
+      paths reduceLeft selectBestPath
     }
 
     val isIgnition = bestPaths exists (_.hasIgnition)
@@ -291,10 +292,11 @@ class SingleSiteFireModel(pathModel: IgnitionPathModel, plantFlameModel: PlantFl
    */
   private def selectBestPath(a: IgnitionPath, b: IgnitionPath): IgnitionPath = {
     if (a.hasIgnition) {
-      if (b.hasIgnition) if (b.maxSegmentLength > a.maxSegmentLength) b else a
+      if (b.hasIgnition)
+        if (Numerics.gt(b.maxSegmentLength, a.maxSegmentLength)) b else a
       else a
     } else if (b.hasIgnition) b
-    else if (b.maxDryingTemperature > a.maxDryingTemperature) b else a
+    else if (Numerics.gt(b.maxDryingTemperature, a.maxDryingTemperature)) b else a
   }
 
   /**
@@ -433,7 +435,7 @@ class SingleSiteFireModel(pathModel: IgnitionPathModel, plantFlameModel: PlantFl
    */
   def calculateCanopyHeatingDistance(canopyStratum: Stratum, allFlameSeries: IndexedSeq[StratumFlameSeries]): Double = {
 
-    require(canopyStratum.level == StratumLevel.Canopy)
+    require(canopyStratum.level == StratumLevel.Canopy)  // just in case
 
     // Check that we haven't somehow got a flame series for the canopy already
     require(!allFlameSeries.exists(_.stratum.level == StratumLevel.Canopy), "Flame series already created for canopy stratum")
@@ -441,13 +443,14 @@ class SingleSiteFireModel(pathModel: IgnitionPathModel, plantFlameModel: PlantFl
     val canopyLine = Line(Coord(0.0, canopyStratum.averageBottom), site.slope)
 
     /*
-     * Recursive helper to process the flame series sequence
+     * Recursive helper to process the flame series sequence.
+     * Returns the calculated canopy heating distance when finished.
      */
     def iter(fss: IndexedSeq[StratumFlameSeries], offsetX: Double, curDist: Double): Double = {
       if (fss.isEmpty) curDist - offsetX
       else {
         val flame = fss.head.longestFlame
-        val intersectionPt = canopyLine.intersection(flame.plume).get
+        val intersectionPt = canopyLine.intersection(flame.plume, strict=false).get
 
         val nextDist = {
           val d = flame.origin.distanceTo(intersectionPt)
@@ -461,8 +464,20 @@ class SingleSiteFireModel(pathModel: IgnitionPathModel, plantFlameModel: PlantFl
           if (fss.tail.isEmpty) offsetX
           else {
             val nextfs = fss.tail.head
-            val nextStratumLine = Line(Coord(0.0, nextfs.stratum.averageBottom), site.slope)
-            val pt = nextStratumLine.intersection(flame.plume).get
+            
+            val pt = 
+              if (nextfs.stratum.level == StratumLevel.Canopy) intersectionPt
+              else {
+                val nextStratumLine = Line(Coord(0.0, nextfs.stratum.averageBottom), site.slope)
+                
+                // For the intersection between the stratum line and the plume ray, we treat
+                // the plume as a line by setting the `strict` argument to false. This allows
+                // an intersection point to be found on an extension of the plume ray (ie. before
+                // the flame origin point). Doing this to accord with the behaviour of the C++
+                // version of the model.
+                
+                nextStratumLine.intersection(flame.plume, strict=false).get
+              }
 
             offsetX + pt.x
           }

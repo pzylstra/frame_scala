@@ -56,7 +56,7 @@ class Line private(c: Coord, theta: Double) {
     }
     else {
       val ray = Ray(targetPoint, angle + math.Pi)
-      val result = this.intersection(ray)
+      val result = this.intersection(ray, strict=true)
       
       if (errorOnFail && result.isEmpty)
         throw new Error(f"Failed to find origin for angle=${angle}%.4f and target point $targetPoint")
@@ -81,21 +81,25 @@ class Line private(c: Coord, theta: Double) {
   /**
    * Finds the intersection point with a ray.
    * 
-   * If the ray is parallel to, or pointing away from, this line then
-   * None is returned.
-   * 
-   * The calculation does a line intersection and then checks that the angle
-   * from the ray origin to the intersection coordinate matches the angle of 
-   * the ray.
+   * If `strict` is false, the ray is treated as a line and an intersection
+   * point will be found even if the ray is pointing away from the line
+   * (unless the two are parallel). If `strict` is true, an intersection
+   * point will only be returned if the ray strictly crosses the line.
    */
-  def intersection(ray: Ray): Option[Coord] = {
-    intersection(Line(ray.origin, ray.angle)) match {
-      case None => None
-      case Some(coord) =>
+  def intersection(ray: Ray, strict: Boolean): Option[Coord] = {
+    val lineResult = intersection(Line(ray.origin, ray.angle)) 
+    
+    lineResult match {
+      case Some(coord) if strict => 
         val theta = ray.origin.angleTo(coord)
         val diff = Angles.diff(theta, ray.angle)
         if ( Numerics.almostZero(diff)) Some(coord)
         else None
+        
+      case Some(coord) => // not strict
+        lineResult
+        
+      case None => None
     }
   }
   

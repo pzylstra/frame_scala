@@ -2,8 +2,9 @@ package ffm.geometry
 
 import org.scalatest.FlatSpec
 import org.scalatest.Matchers
+import org.scalatest.OptionValues
 
-class LineSpec extends FlatSpec with Matchers {
+class LineSpec extends FlatSpec with Matchers with OptionValues {
 
   val anchor = Coord.Origin
   val line45 = Line(anchor, math.Pi / 4)
@@ -57,10 +58,7 @@ class LineSpec extends FlatSpec with Matchers {
   
   it should "find the correct intersection point with a non-parallel line" in {
     val other = Line.vertical(Coord(10.0, 0.0))
-    line45.intersection(other) match {
-      case None => fail("intersection not found")
-      case Some(cx) => cx.almostEq(Coord(10.0, 10.0)) should be (true)
-    }
+    line45.intersection(other).value.almostEq(Coord(10.0, 10.0)) should be (true)
   }
   
   it should "return None for the intersection point with itself" in {
@@ -77,12 +75,18 @@ class LineSpec extends FlatSpec with Matchers {
     val ray = Ray(Coord(10, 0), -math.Pi)
     val expectedCoord = Coord.Origin 
     
-    line45.intersection(ray) match {
-      case None => fail("intersection not found")
-      case Some(coord) => coord.almostEq(expectedCoord) should be (true)
-    }
+    line45.intersection(ray, strict=true).value.almostEq(expectedCoord) should be (true)
   }
   
+  it should "not find an intersection with a ray that does not cross it when strict is true" in {
+    val ray = Ray(line45.anchor.toOffset(0, 1), math.Pi / 2)
+    line45.intersection(ray, strict=true) should be (None)
+  }
+  
+  it should "find an intersection with a ray that does not cross it when strict is false" in {
+    val ray = Ray(line45.anchor.toOffset(0, 1), math.Pi / 2)
+    line45.intersection(ray, strict=false) should be ('defined)
+  }
   
   /////////////////////////////////////////////////////////////////////////////
   // tests of method originOnLine

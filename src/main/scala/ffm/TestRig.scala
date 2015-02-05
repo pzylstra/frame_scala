@@ -4,10 +4,11 @@ import scala.util.{ Failure, Success }
 import ffm.io._
 import ffm.fire._
 import ffm.util.FileUtils
+import ffm.forest.StratumLevel
 
 object TestRig {
 
-  val defaultInPath = "c:/michael/coding/cpp/forest_flammability_model/5.txt"
+  val defaultInPath = "c:/michael/coding/cpp/forest_flammability_model/2.txt"
   val defaultOutDir = "c:/michael/coding/ffm/testing"
   
   def main(args: Array[String]) {
@@ -28,12 +29,13 @@ object TestRig {
 
     // run the fire model
     val pathModel = new SpikeIgnitionPathModel
-    val fireModel = new SingleSiteFireModel(pathModel, DefaultPlantFlameModel)(site, includeCanopy=true, 100.0)
+    
+    // TODO: read fire line length from parameters file (check with Phil if it ever changes)
+    val fireModel = new SingleSiteFireModel(pathModel, DefaultPlantFlameModel)(_, _, _) //(site, includeCanopy=true, fireLineLength=100.0)
 
-    val result = fireModel.run()
-
-    val output = ResultFormatter.format(result)
-    println(output)
+    val result1 = fireModel(site, true, 100.0).run()
+    
+    val output1 = ResultFormatter.format(result1)
     
     val outPath = {
       import FileUtils._
@@ -43,8 +45,28 @@ object TestRig {
       } yield makePath(defaultOutDir, outName)
     }
     
+    // If there was a canopy stratum with fire spread between crowns, re-run with
+    // includeCanopy = false (for altered wind speed calculation)
+    val fireSpreadInCanopy = result1.paths exists { path => 
+      path.hasIgnition &&
+      path.context.stratumLevel == StratumLevel.Canopy &&
+      path.context.runType == IgnitionRunType.StratumRun
+    }
+
+    val output =
+      if (fireSpreadInCanopy) {
+        val result2 = fireModel(site, false, 100.0).run()
+
+        val output2 = ResultFormatter.format(result2)
+
+        output1 + "\n\n==== Second run ====\n\n" + output2
+      } else output1
+    
     if (outPath.isDefined) 
       FileUtils.withPrintWriter(outPath.get) { writer => writer.println(output) }
+
+    println(output)
+    
   }
 }
 
