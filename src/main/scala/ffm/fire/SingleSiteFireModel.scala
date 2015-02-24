@@ -446,47 +446,33 @@ class SingleSiteFireModel(pathModel: IgnitionPathModel, plantFlameModel: PlantFl
      * Recursive helper to process the flame series sequence.
      * Returns the calculated canopy heating distance when finished.
      */
-    def iter(fss: IndexedSeq[StratumFlameSeries], offsetX: Double, curDist: Double): Double = {
-      if (fss.isEmpty) curDist - offsetX
+    def iter(fss: IndexedSeq[StratumFlameSeries], curDist: Double): Double = {
+      if (fss.isEmpty) curDist
       else {
         val flame = fss.head.longestFlame
-        val intersectionPt = canopyLine.intersection(flame.plume, strict=false).get
+        
+        val pt = canopyLine.intersection(flame.plume) match {
+          // flame intersects lower canopy edge - return point  
+          case Some(coord) => coord
+          
+          // no intersection - flame origin must be above lower canopy
+          // edge (overlapping strata) so use origin as intersection point
+          case None => flame.origin 
+        }
 
         val nextDist = {
-          val d = flame.origin.distanceTo(intersectionPt)
+          val d = flame.origin.distanceTo(pt)
           if (flame.plumeTemperature(d, site.temperature) >= MinTempForCanopyHeating)
-            curDist max (intersectionPt.x + offsetX)
+            curDist max pt.x
           else
             curDist
         }
 
-        val nextOffsetX =
-          if (fss.tail.isEmpty) offsetX
-          else {
-            val nextfs = fss.tail.head
-            
-            val pt = 
-              if (nextfs.stratum.level == StratumLevel.Canopy) intersectionPt
-              else {
-                val nextStratumLine = Line(Coord(0.0, nextfs.stratum.averageBottom), site.slope)
-                
-                // For the intersection between the stratum line and the plume ray, we treat
-                // the plume as a line by setting the `strict` argument to false. This allows
-                // an intersection point to be found on an extension of the plume ray (ie. before
-                // the flame origin point). Doing this to accord with the behaviour of the C++
-                // version of the model.
-                
-                nextStratumLine.intersection(flame.plume, strict=false).get
-              }
-
-            offsetX + pt.x
-          }
-
-        iter(fss.tail, nextOffsetX, nextDist)
+        iter(fss.tail, nextDist)
       }
     }
 
-    iter(allFlameSeries, 0.0, 0.0)
+    iter(allFlameSeries, 0.0)
   }
 
 }

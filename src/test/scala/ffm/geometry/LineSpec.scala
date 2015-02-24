@@ -75,18 +75,14 @@ class LineSpec extends FlatSpec with Matchers with OptionValues {
     val ray = Ray(Coord(10, 0), -math.Pi)
     val expectedCoord = Coord.Origin 
     
-    line45.intersection(ray, strict=true).value.almostEq(expectedCoord) should be (true)
+    line45.intersection(ray).value.almostEq(expectedCoord) should be (true)
   }
   
   it should "not find an intersection with a ray that does not cross it when strict is true" in {
     val ray = Ray(line45.anchor.toOffset(0, 1), math.Pi / 2)
-    line45.intersection(ray, strict=true) should be (None)
+    line45.intersection(ray) should be (None)
   }
   
-  it should "find an intersection with a ray that does not cross it when strict is false" in {
-    val ray = Ray(line45.anchor.toOffset(0, 1), math.Pi / 2)
-    line45.intersection(ray, strict=false) should be ('defined)
-  }
   
   /////////////////////////////////////////////////////////////////////////////
   // tests of method originOnLine
