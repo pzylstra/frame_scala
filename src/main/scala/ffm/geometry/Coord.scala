@@ -73,11 +73,11 @@ case class Coord(val x: Double, val y: Double) {
     Coord(x + that.x, y + that.y)
     
   /**
-   * Returns a new Coord where the ordinates are the product
-   * of this Coord and the given multiplier. 
+   * Returns a new Coord formed by multipling X and Y ordinates
+   * of this Coord by `m`.
    */
-  def times(mult: Double): Coord =
-    Coord(x * mult, y * mult)
+  def multipliedBy(m: Double): Coord =
+    Coord(x * m, y * m)
     
   /**
    * String representation.

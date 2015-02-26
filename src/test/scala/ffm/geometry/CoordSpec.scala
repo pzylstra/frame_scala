@@ -125,5 +125,14 @@ class CoordSpec extends BasicSpec with PropertyChecks {
       c1.angleTo(c0) should be (reverseAngle +- Tol)
     }
   }
+  
+  it should "multiplied by a scalar should return the correct Coord result" in {
+    // random coords multipled by values drawn from [-100, 100], making sure to include 0.0
+    forAll(coords, Gen.chooseNum(-100.0, 100.0, 0.0)) { (c, m) =>
+      val cprod = c.multipliedBy(m)
+      cprod.x should be (c.x * m +- Tol)
+      cprod.y should be (c.y * m +- Tol)
+    }
+  }
 
 }
