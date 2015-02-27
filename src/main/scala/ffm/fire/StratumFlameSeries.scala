@@ -42,7 +42,7 @@ class StratumFlameSeries (val stratum: Stratum, _flames: IndexedSeq[Flame]) {
   
   /** Maximum flame length capped to mean length plus 1 std dev. */
   val cappedMaxFlameLength: Double = 
-    math.max(maxFlameLength, meanFlameLength + Stats.stddev(flameLengths, meanFlameLength))
+    math.min(maxFlameLength, meanFlameLength + Stats.stddev(flameLengths, meanFlameLength))
 
   /**
    * Mean flame origin.

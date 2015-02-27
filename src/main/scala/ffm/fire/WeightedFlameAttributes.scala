@@ -119,17 +119,17 @@ object WeightedFlameAttributes {
         val ignitionTime = path.ignitionTime * wt
         val timeToMaxLen = path.timeFromIgnitionToMaxLength * wt
 
-        val lengths = segments.map(seg => plantFlameModel.flameLength(species, seg.length) * wt)
-        val depths = segments.map(_.length * wt)
-        val origins = segments.map(_.start.times(wt))
+        val lengths = segments map (seg => plantFlameModel.flameLength(species, seg.length) * wt)
+        val depths = segments map (_.length * wt)
+        val origins = segments map (_.start.multipliedBy(wt))
 
         val t =
           if (Species.isGrass(species, stratumLevel)) GrassFlameDeltaTemperature
           else MainFlameDeltaTemperature
 
-        val temps = lengths.map(_ * t)
+        val lengthWeightedTemps = lengths.map(_ * t)
 
-        val attrs = NonEmpty(ignitionTime, timeToMaxLen, lengths, depths, origins, temps)
+        val attrs = NonEmpty(ignitionTime, timeToMaxLen, lengths, depths, origins, lengthWeightedTemps)
 
         iter(combine(curAttrs, attrs), curPaths.tail)
       }
@@ -141,7 +141,7 @@ object WeightedFlameAttributes {
     // If we have data, finalize the calculation of length-weighted temperatures
     attrs match {
       case attrs: NonEmpty =>
-        val finalTemps = (attrs.temperatures zip attrs.flameLengths) map { case (t, len) => t / len }
+        val finalTemps = (attrs.temperatures zip attrs.flameLengths) map { case (t, len) => t / len }        
         attrs.copy(temperatures = finalTemps)
         
       case _ =>

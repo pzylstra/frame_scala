@@ -299,7 +299,8 @@ object Flame {
    * crown width and separation.
    */
   def lateralMergedFlameLength(flameLength: Double, fireLineLength: Double, crownWidth: Double, crownSeparation: Double): Double = {
-    val sigma = fireLineLength min (0.23112 * crownWidth * math.pow(flameLength / crownWidth, 2.0 / 3.0))
+    // Note: using exponent 0.6667 rather than 2.0 / 3.0 in the expression below to match the C++ code
+    val sigma = fireLineLength min (0.23112 * crownWidth * math.pow(flameLength / crownWidth, 0.6667))
     flameLength * math.pow(sigma / crownSeparation + 1.0, 0.4)
   }
 
