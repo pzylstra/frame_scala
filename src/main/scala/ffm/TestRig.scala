@@ -41,7 +41,7 @@ object TestRig {
       import FileUtils._
       for {
         inName <- fileName(path)
-        outName = removeExtension(inName) + "_scala_out.txt"
+        outName = removeExtension(inName) + "_out_scala.txt"
       } yield makePath(defaultOutDir, outName)
     }
     

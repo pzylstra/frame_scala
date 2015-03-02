@@ -395,7 +395,7 @@ class SingleSiteFireModel(pathModel: IgnitionPathModel, plantFlameModel: PlantFl
           otherStratum <- site.vegetation.strata
           if otherStratum < stratum &&
             flameSeriesByLevel.isDefinedAt(otherStratum.level) &&
-            flameConnections.isConnected(stratum, otherStratum)
+            flameConnections.isConnected(lower = otherStratum, upper = stratum)
         } yield otherStratum
 
       // Calculate a flame-weighted wind speed
