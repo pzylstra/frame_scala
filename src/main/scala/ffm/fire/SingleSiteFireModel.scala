@@ -333,7 +333,7 @@ class SingleSiteFireModel(pathModel: IgnitionPathModel, plantFlameModel: PlantFl
       leafLength = sp.leafLength,
       leafSeparation = sp.leafSeparation,
       stemOrder = sp.stemOrder,
-      clumpDiameter = sp.clumpDiameter,
+      clumpDiameter = sp.crown.width,
       clumpSeparation = math.max(sp.clumpSeparation, stratum.modelPlantSep - stratum.averageWidth))
   }
 
