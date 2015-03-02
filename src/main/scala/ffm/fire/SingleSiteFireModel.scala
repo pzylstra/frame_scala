@@ -10,24 +10,7 @@ import ffm.numerics.Numerics
  */
 class SingleSiteFireModel(pathModel: IgnitionPathModel, plantFlameModel: PlantFlameModel)(site: Site, includeCanopy: Boolean, fireLineLength: Double) extends FireModel {
 
-  val surfaceWindSpeed = VegetationWindModel.surfaceWindSpeed(site, includeCanopy)
-
-  val surfaceFlameLength = site.surface.flameLength(surfaceWindSpeed)
-
-  val surfaceFlameAngle =
-    Flame.flameAngle(surfaceFlameLength, surfaceWindSpeed, site.slope, fireLineLength)
-
-  val surfaceFlames: IndexedSeq[Flame] = {
-    val nflames = math.round(site.surface.flameResidenceTime / ComputationTimeInterval).toInt
-    Vector.fill(nflames) {
-      Flame(
-        length = surfaceFlameLength,
-        angle = surfaceFlameAngle,
-        origin = Coord.Origin,
-        depthIgnited = 0,
-        deltaTemperature = MainFlameDeltaTemperature)
-    }
-  }
+  val surfaceParams = new SurfaceParams(site, fireLineLength, includeCanopy)
 
   /**
    * Records and tests connections between strata.
@@ -62,7 +45,7 @@ class SingleSiteFireModel(pathModel: IgnitionPathModel, plantFlameModel: PlantFl
    */
   def run(): FireModelResult = {
     val initPreHeatingFlame = PreHeatingFlame(
-      surfaceFlames.head,
+      surfaceParams.flames.head,
       StratumLevel.Surface,
       startTime = 0,
       endTime = site.surface.flameResidenceTime)
@@ -72,7 +55,7 @@ class SingleSiteFireModel(pathModel: IgnitionPathModel, plantFlameModel: PlantFl
       Vector(initPreHeatingFlame),
       preHeatingEndTime = -1, // TODO: can we get rid of this magic initial value ?
       new FlameConnections(),
-      new FireModelResult())
+      new FireModelResult(surfaceParams))
   }
 
   /**
@@ -386,7 +369,7 @@ class SingleSiteFireModel(pathModel: IgnitionPathModel, plantFlameModel: PlantFl
 
     val flameSeriesByLevel = Map() ++ (allFlameSeries map (fs => (fs.stratum.level, fs)))
 
-    if (allFlameSeries.isEmpty) surfaceFlames
+    if (allFlameSeries.isEmpty) surfaceParams.flames
     else {
       // Find lower strata with flames and a connection to the 
       // current stratum
@@ -399,8 +382,8 @@ class SingleSiteFireModel(pathModel: IgnitionPathModel, plantFlameModel: PlantFl
         } yield otherStratum
 
       // Calculate a flame-weighted wind speed
-      val initLen = surfaceFlames.head.flameLength
-      val initWind = surfaceWindSpeed * initLen
+      val initLen = surfaceParams.flameLength
+      val initWind = surfaceParams.windSpeed * initLen
 
       val (finalLen, finalWind) =
         lowerActiveStrata.foldLeft((initLen, initWind)) {
@@ -417,7 +400,7 @@ class SingleSiteFireModel(pathModel: IgnitionPathModel, plantFlameModel: PlantFl
        * Combine surface flames with those from lower active strata to 
        * create the incident flames
        */
-      val combinedFlames: IndexedSeq[Flame] = lowerActiveStrata.foldLeft(surfaceFlames) {
+      val combinedFlames: IndexedSeq[Flame] = lowerActiveStrata.foldLeft(surfaceParams.flames) {
         case (flames, lower) =>
           val lowerFlames = flameSeriesByLevel(lower.level).flames
 
