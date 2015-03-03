@@ -90,21 +90,40 @@ object PreIgnitionFormatter {
 }
 
 object ResultFormatter {
+  
+  def adder(buf: StringBuilder): (String => Unit) = 
+    s => buf ++= s + '\n'
+  
   def format(fmr: FireModelResult): String = {
-    if (fmr.paths.isEmpty) "No ignition paths"
-    else {
-      val buf = new StringBuilder
+    val buf = new StringBuilder
+    
+    buf ++= formatSurfaceParams(fmr.surfaceParams) + '\n'
+    
+    if (fmr.paths.isEmpty) 
+      buf ++= "No ignition paths"
+    else
       fmr.paths foreach { path => buf ++= formatPath(path) + '\n' }
 
-      buf.toString
-    }
+    buf.toString
+  }
+  
+  def formatSurfaceParams(sp: SurfaceParams): String = {
+    val buf = new StringBuilder
+    val add = adder(buf)
+    
+    add( f"surface wind speed   ${sp.windSpeed}%.2f" )
+    add( f"surface flame length ${sp.flameLength}%.2f" )
+    add( f"surface flame angle  ${sp.flameAngle}%.2f" )
+    add( f"surface flame height ${sp.flameHeight}%.2f" )
+
+    buf.toString
   }
 
   def formatPath(path: IgnitionPath): String = {
     val buf = new StringBuilder
     val ctxt = path.context
-
-    def add(s: String) = buf ++= s + '\n'
+    
+    val add = adder(buf)
 
     add(s"${ctxt.stratumLevel} ${path.speciesComponent}")
 
