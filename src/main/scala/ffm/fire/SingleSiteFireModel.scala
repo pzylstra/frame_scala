@@ -367,49 +367,58 @@ class SingleSiteFireModel(pathModel: IgnitionPathModel, plantFlameModel: PlantFl
     flameConnections: FlameConnections,
     allFlameSeries: IndexedSeq[StratumFlameSeries]): IndexedSeq[Flame] = {
 
-    val flameSeriesByLevel = Map() ++ (allFlameSeries map (fs => (fs.stratum.level, fs)))
-
     if (allFlameSeries.isEmpty) surfaceParams.flames
     else {
-      // Find lower strata with flames and a connection to the 
-      // current stratum
-      val lowerActiveStrata =
+      // Find lower strata with flames and a connection to the current stratum
+      val lowerStrata =
         for {
           otherStratum <- site.vegetation.strata
           if otherStratum < stratum &&
-            flameSeriesByLevel.isDefinedAt(otherStratum.level) &&
+            allFlameSeries.exists(fs => fs.stratum.level == otherStratum.level) &&
             flameConnections.isConnected(lower = otherStratum, upper = stratum)
         } yield otherStratum
 
-      // Calculate a flame-weighted wind speed
-      val initLen = surfaceParams.flameLength
-      val initWind = surfaceParams.windSpeed * initLen
+      combineStrataFlames(lowerStrata, allFlameSeries)
+    }
+  }
 
-      val (finalLen, finalWind) =
-        lowerActiveStrata.foldLeft((initLen, initWind)) {
-          case ((curLen, curWind), lower) =>
-            val flameLen = flameSeriesByLevel(lower.level).cappedMaxFlameLength 
-            val windSp = VegetationWindModel.windSpeedAtHeight(lower.averageMidHeight, site, includeCanopy)
-            
-            (curLen + flameLen, curWind + flameLen * windSp)
-        }
+  /**
+   * Derives combined flames from the given strata.
+   */
+  private def combineStrataFlames(
+    strata: IndexedSeq[Stratum],
+    allFlameSeries: IndexedSeq[StratumFlameSeries]): IndexedSeq[Flame] = {
 
-      val flameWeightedWindSpeed = if (finalLen > 0) finalWind / finalLen else 0.0
+    val flameSeriesByLevel = Map() ++ (allFlameSeries map (fs => (fs.stratum.level, fs)))
 
-      /*
+    // Calculate a flame-weighted wind speed
+    val initLen = surfaceParams.flameLength
+    val initWind = surfaceParams.windSpeed * initLen
+
+    val (finalLen, finalWind) =
+      strata.foldLeft((initLen, initWind)) {
+        case ((curLen, curWind), lower) =>
+          val flameLen = flameSeriesByLevel(lower.level).cappedMaxFlameLength
+          val windSp = VegetationWindModel.windSpeedAtHeight(lower.averageMidHeight, site, includeCanopy)
+
+          (curLen + flameLen, curWind + flameLen * windSp)
+      }
+
+    val flameWeightedWindSpeed = if (finalLen > 0) finalWind / finalLen else 0.0
+
+    /*
        * Combine surface flames with those from lower active strata to 
        * create the incident flames
        */
-      val combinedFlames: IndexedSeq[Flame] = lowerActiveStrata.foldLeft(surfaceParams.flames) {
-        case (flames, lower) =>
-          val lowerFlames = flameSeriesByLevel(lower.level).flames
+    val combinedFlames: IndexedSeq[Flame] = strata.foldLeft(surfaceParams.flames) {
+      case (flames, lower) =>
+        val lowerFlames = flameSeriesByLevel(lower.level).flames
 
-          Flame.combineFlames(flames, lowerFlames, flameWeightedWindSpeed, site.slope, fireLineLength)
-      }
-
-      // Return the combined flames as the incident flames
-      combinedFlames
+        Flame.combineFlames(flames, lowerFlames, flameWeightedWindSpeed, site.slope, fireLineLength)
     }
+
+    // Return the combined flames as the incident flames
+    combinedFlames
   }
 
   /**
