@@ -69,12 +69,20 @@ class SingleSiteFireModel(pathModel: IgnitionPathModel, plantFlameModel: PlantFl
     curData: FireModelResult): FireModelResult = {
 
     if (strata.isEmpty) {
-      // All done - return accumulated results
-      curData
+      /*
+       * Finished processing. 
+       * Combine flames from all strata connected to the canopy and return results.
+       */
+      val allStrataFlames = combinedFlamesForAllStrata(curData.flameSeriess, flameConnections)
+
+      curData withCombinedFlames(allStrataFlames)
 
     } else {
+      /*
+       * Process next stratum.
+       */
       val stratum = strata.head
-      val incidentFlames = createIncidentFlames(stratum, flameConnections, curData.flameSeriess)
+      val incidentFlames = createIncidentFlames(stratum, curData.flameSeriess, flameConnections)
       val stratumWindSpeed = VegetationWindModel.windSpeedAtHeight(stratum.averageMidHeight, site, includeCanopy)
 
       val plantRunContext = IgnitionContext(
@@ -91,10 +99,10 @@ class SingleSiteFireModel(pathModel: IgnitionPathModel, plantFlameModel: PlantFl
 
       if (!plantRunResult.isIgnition) {
         /*
-           * Nothing more to do for this stratum.
-           * Add the paths (which will have pre-ignition data) to the accumulator
-           * and process the remaining strata. 
-           */
+         * Nothing more to do for this stratum.
+         * Add the paths (which will have pre-ignition data) to the accumulator
+         * and process the remaining strata. 
+         */
         processStrata(
           strata.tail,
           preHeatingFlames,
@@ -356,7 +364,7 @@ class SingleSiteFireModel(pathModel: IgnitionPathModel, plantFlameModel: PlantFl
   }
 
   /**
-   * Creates a vector of incident flames for the given stratum.
+   * Creates incident flames acting on the given stratum.
    *
    * Compute incident flames for this stratum from surface flames and the
    * flames from lower strata. Only include lower strata which have a connection
@@ -364,8 +372,8 @@ class SingleSiteFireModel(pathModel: IgnitionPathModel, plantFlameModel: PlantFl
    */
   private def createIncidentFlames(
     stratum: Stratum,
-    flameConnections: FlameConnections,
-    allFlameSeries: IndexedSeq[StratumFlameSeries]): IndexedSeq[Flame] = {
+    allFlameSeries: IndexedSeq[StratumFlameSeries],
+    flameConnections: FlameConnections): IndexedSeq[Flame] = {
 
     if (allFlameSeries.isEmpty) surfaceParams.flames
     else {
@@ -381,6 +389,34 @@ class SingleSiteFireModel(pathModel: IgnitionPathModel, plantFlameModel: PlantFl
       combineStrataFlames(lowerStrata, allFlameSeries)
     }
   }
+  
+  /**
+   * Returns combined flames for all strata, including the canopy, from surface
+   * flames and stratum flames.
+   * 
+   * Only strata which have a connection to the canopy (flame connection or
+   * vertical association) are included.
+   */
+  private def combinedFlamesForAllStrata(
+      allFlameSeries: IndexedSeq[StratumFlameSeries],
+      flameConnections: FlameConnections): IndexedSeq[Flame] = {
+    
+    if (allFlameSeries.isEmpty) surfaceParams.flames
+    else {
+      val canopy = site.vegetation.strataByLevel(StratumLevel.Canopy)
+      val strataConnectedToCanopy =
+        for {
+          s <- site.vegetation.strata
+          if stratumLevelHasFlames(s.level, allFlameSeries) &&
+            (s.level == StratumLevel.Canopy || flameConnections.isConnected(lower = s, upper = canopy))
+        } yield s
+        
+      combineStrataFlames(strataConnectedToCanopy, allFlameSeries)
+    }
+  }
+  
+  private def stratumLevelHasFlames(level: StratumLevel, allFlameSeries: IndexedSeq[StratumFlameSeries]): Boolean =
+    allFlameSeries exists (fs => fs.stratum.level == level)
 
   /**
    * Derives combined flames from the given strata.

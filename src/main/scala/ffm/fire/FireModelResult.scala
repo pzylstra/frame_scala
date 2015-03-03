@@ -4,13 +4,22 @@ package ffm.fire
  * Holds ignition paths and flame series generated from plant and stratum
  * ignition runs, together with the surface fire parameters.
  */
-class FireModelResult(val surfaceParams: SurfaceParams, val paths: IndexedSeq[IgnitionPath], val flameSeriess: IndexedSeq[StratumFlameSeries]) {
-  /** Creates an empty instance. */
-  def this(surfaceParams: SurfaceParams) = this(surfaceParams, Vector.empty, Vector.empty)
-
+case class FireModelResult(
+    surfaceParams: SurfaceParams, 
+    paths: IndexedSeq[IgnitionPath], 
+    flameSeriess: IndexedSeq[StratumFlameSeries],
+    combinedFlames: IndexedSeq[Flame]
+    ) {
+  
+  def this(surfaceParams: SurfaceParams) =
+    this(surfaceParams, Vector.empty, Vector.empty, Vector.empty)
+    
   /** Adds ignition paths. */
-  def add(newPaths: IndexedSeq[IgnitionPath]) = new FireModelResult(surfaceParams, paths ++ newPaths, flameSeriess)
+  def add(newPaths: IndexedSeq[IgnitionPath]) = copy(paths = paths ++ newPaths)
 
   /** Adds a flame series. */
-  def add(newSeries: StratumFlameSeries) = new FireModelResult(surfaceParams, paths, flameSeriess :+ newSeries)
+  def add(newSeries: StratumFlameSeries) = copy(flameSeriess = flameSeriess :+ newSeries)
+  
+  /** Sets the combined flames. */
+  def withCombinedFlames(flames: IndexedSeq[Flame]) = copy(combinedFlames = flames)
 }
