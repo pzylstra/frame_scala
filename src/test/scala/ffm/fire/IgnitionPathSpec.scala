@@ -1,147 +1,123 @@
 package ffm.fire
 
-import org.mockito.Mockito.when
-import org.scalatest.FlatSpec
-import org.scalatest.Matchers
-import org.scalatest.OptionValues
-import org.scalatest.mock.MockitoSugar
-import ffm.forest.{Site, Species, Stratum, StratumLevel}
-import ffm.geometry.{Coord, Segment}
-import ffm.forest.SpeciesComponent
+import org.scalacheck.Gen
+import org.scalatest.prop.PropertyChecks
 
+import ffm.ModelSettings
+import ffm.numerics.Numerics
+import ffm.numerics.Stats
 
-class IgnitionPathSpec extends FlatSpec with Matchers with MockitoSugar with OptionValues {
+class IgnitionPathSpec extends IgnitionPathTestBase with PropertyChecks {
 
-  val species = mock[Species]
-  val spComp = SpeciesComponent(species, 1.0)
-  val stratumLevel = StratumLevel.Canopy
-  val site = mock[Site]
-  
-  val context = mock[IgnitionContext]
-  when (context.site) thenReturn site
-  when (context.stratumLevel) thenReturn stratumLevel
+  val Tol = 1.0e-6
 
-  // This extends the IgntionPathBuilder with a method to 
-  // add segments directly
-  implicit class IgnitionPathBuilderEx(builder: IgnitionPathBuilder) {
-    def addSegment(s: IgnitedSegment): Unit =
-      builder.addSegment(s.timeStep, s.start, s.end)
-  }
-
-  def newBuilder = IgnitionPathBuilder(context, spComp, c0)
   
-  val c0 = Coord.Origin 
-  val pos = (d: Double) => c0.toOffset(d, 0.0)  
+  "An IgnitionPath" should "return the correct initial point" in {
+    
+    forAll(smallCoords) { init => 
+      val b = IgnitionPathBuilder(context, spComp, init)
+      
+      val ip = b.toIgnitionPath.initialPoint      
+      ip.almostEq(init) should be (true)
+    }
+  } 
   
-  
-  "An IgnitionPathBuilder" should "initially have no segments" in {
-    newBuilder.segments.isEmpty should be (true)
-  }
-  
-  it should "initially return false for hasIgnition" in {
-    newBuilder.hasIgnition should be (false)
-  }
-  
-  it should "throw a NoSuchElementException for ignitionTimeStep before ignition has occurred" in {
-    intercept [NoSuchElementException] {
-      newBuilder.ignitionTimeStep
+  it should "return the correct max segment length" in {
+    
+    forAll (distanceLists(minDist=0.0, maxDist=10.0)) { distances =>
+    
+      val expected = distances.max
+      
+      val segmentParams = makeSegmentParams(distances)
+      val path = makePath( segmentParams: _* )
+      
+      path.maxSegmentLength should be (expected +- Tol)
     }
   }
   
-  it should "take the time of the first added segment as ignition time" in {
-    val builder = newBuilder
-    builder.addSegment(3, c0, pos(1.0))
-    builder.ignitionTimeStep should be (3)
-  }
-  
-  it should "return true for hasIgnition once a segment has been added" in {
-    val builder = newBuilder
-    builder.addSegment(3, c0, pos(1.0))
-    builder.hasIgnition should be (true)
-  }
-  
-  it should "correctly add segments for consecutive time steps" in {
-    val builder = newBuilder
-    val time = 1
-
-    val segments = List(
-      new IgnitedSegment(time, c0, pos(1.0)),    
-      new IgnitedSegment(time + 1, c0, pos(1.0)),    
-      new IgnitedSegment(time + 2, pos(1.0), pos(2.0))  
-    )
-    
-    segments foreach (builder.addSegment(_))
-    
-    builder.segments should contain theSameElementsInOrderAs segments
-  }
-  
-  it should "throw an error on adding a segment with a time <= the previous segment" in {
-    val builder = newBuilder
-    val time = 1
-    builder.addSegment(time, c0, pos(1.0))
-
-    intercept[IllegalArgumentException] {
-      builder.addSegment(time, pos(1.0), pos(2.0))
-    }
-    
-    intercept[IllegalArgumentException] {
-      builder.addSegment(time - 1, pos(1.0), pos(2.0))
-    }
-  }
-  
-  it should "throw an error on adding a segment with a time > previous time + 1" in {
-    val builder = newBuilder
-    val time = 1
-    builder.addSegment(time, c0, pos(1.0))
-
-    intercept[IllegalArgumentException] {
-      builder.addSegment(time + 2, pos(1.0), pos(2.0))
-    }
-  }
-  
-  it should "return an instance of IgnitionPath with the correct data" in {
-    val builder = newBuilder
-    val time = 1
-    
-    val segments = List(
-      new IgnitedSegment(time, c0, pos(1.0)),    
-      new IgnitedSegment(time + 1, c0, pos(1.0)),    
-      new IgnitedSegment(time + 2, pos(1.0), pos(2.0))  
-    )
-    
-    segments foreach (builder.addSegment(_))
-    
-    val path: IgnitionPath = builder.toIgnitionPath
-    
-    path.segments should contain theSameElementsInOrderAs segments  
-    path.hasIgnition should be (true)
-    path.ignitionTime should be(time)
-  }
   
   it should "find the correct earliest time step with max segment length" in {
-    val builder = newBuilder
-    val time = 5
+
+    forAll (Gen.choose(1, 10), distanceLists(minDist=0.1, maxDist=5.0)) { (startTime, lengths) =>
+      
+      // Work out the earliest time of the max length
+      val maxDist = lengths.max
+      val expectedTime = {
+        val longestOnes = lengths.zipWithIndex filter { case(d, i) => Numerics.almostEq(d, maxDist) }
+        longestOnes.head._2 + startTime
+      }
+      
+      val segmentParams = makeSegmentParams(lengths, startTime)
+      val path = makePath( segmentParams: _* )
+      path.timeStepForMaxLength should be (expectedTime)
+    }
     
-    builder.addSegment(time, c0, pos(0.1))
-    builder.addSegment(time + 1, c0, pos(0.1))
-    builder.addSegment(time + 2, pos(0.1), pos(1.0))  // earliest max length segment
-    builder.addSegment(time + 3, pos(0.1), pos(1.0))
-    builder.addSegment(time + 4, pos(1.0), pos(1.1))
-    
-    val path = builder.toIgnitionPath
-    path.timeStepForMaxLength should be (time + 2)
   }
+  
   
   it should "find the correct time from ignition to max segment length" in {
-    val builder = newBuilder
-    val igTime = 2
-    val maxLenTime = 6
 
-    (igTime until maxLenTime) foreach (t => builder.addSegment(t, c0, pos(0.1)))
-    (maxLenTime to (maxLenTime + 2)) foreach (t => builder.addSegment(t, pos(0.1), pos(1.0)))
+    forAll (Gen.choose(1, 10), distanceLists(minDist=0.1, maxDist=5.0)) { (ignitionTime, lengths) =>
+      
+      // Work out the earliest time of the max length
+      val maxDist = lengths.max
+      val expectedTime = {
+        val longestOnes = lengths.zipWithIndex filter { case(d, i) => Numerics.almostEq(d, maxDist) }
+        longestOnes.head._2
+      }
+      
+      val segmentParams = makeSegmentParams(lengths, ignitionTime)
+      val path = makePath( segmentParams: _* )
+      path.timeFromIgnitionToMaxLength should be (expectedTime)
+    }
     
-    val path = builder.toIgnitionPath
-    path.timeFromIgnitionToMaxLength should be (maxLenTime - igTime)
   }
   
+  it should "return 0.0 for basic rate of spread when ignition did not occur" in {
+    val emptyPath = newBuilder().toIgnitionPath
+    emptyPath.basicROS should be (0.0)
+  }
+  
+  it should "return 0.0 for basic rate of spread when all segment spreads are below threshold" in {
+    val eps = 0.0001
+    val dx = (ModelSettings.MinRateForStratumSpread - eps) * ModelSettings.ComputationTimeInterval 
+    
+    forAll (distanceLists(minDist=0.0, maxDist=dx)) { distances => 
+      val segmentParams = makeSegmentParams(distances)
+      val path = makePath( segmentParams: _* )
+      path.basicROS should be (0.0)
+    }    
+  }
+  
+  it should "return the correct basic rate of spread for a single ignited segment" in {
+     val minDx = ModelSettings.MinRateForStratumSpread * ModelSettings.ComputationTimeInterval + 0.001
+     
+     forAll (Gen.choose(minDx, minDx + 10.0)) { x =>
+       val path = makePath( (1, 0.0, x) )
+       val expectedROS = x / ModelSettings.ComputationTimeInterval 
+       path.basicROS should be (expectedROS +- Tol)
+     }
+  }
+  
+  it should "return the correct basic rate of spread for multiple segments" in {
+    
+    forAll (distanceLists(minDist=0.0, maxDist=5.0)) { distances => 
+      
+      // First calculate expected ROS value from the distances (which will relate to segment Xs)      
+      val rates = distances map { _ / ModelSettings.ComputationTimeInterval }
+      val ratesFastEnough = rates filter (_ > ModelSettings.MinRateForStratumSpread)
+      
+      val expectedROS = 
+        if (ratesFastEnough.isEmpty) 0.0
+        else Stats.mean(ratesFastEnough)
+      
+      // Now create an ignition path based on the segment distances
+      // and compare ROS to expected value
+      val segParams = makeSegmentParams(distances)
+      val path = makePath( segParams: _* )
+      
+      path.basicROS should be (expectedROS +- Tol)
+    }
+  }
+
 }

@@ -11,6 +11,10 @@ case class FireModelResult(
     combinedFlames: IndexedSeq[Flame]
     ) {
   
+  /**
+   * Creates a new result object with empty vectors for paths,
+   * flameSeriess and combinedFlames.
+   */
   def this(surfaceParams: SurfaceParams) =
     this(surfaceParams, Vector.empty, Vector.empty, Vector.empty)
     

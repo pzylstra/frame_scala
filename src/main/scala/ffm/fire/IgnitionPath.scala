@@ -4,6 +4,7 @@ import ffm.ModelSettings
 import ffm.forest.SpeciesComponent
 import ffm.geometry.Coord
 import ffm.numerics.Numerics
+import ffm.numerics.Stats
 
 /**
  * Defines elements to be used by both IgnitionPaths (data objects) and IgnitionPathBuilder.
@@ -93,6 +94,23 @@ trait IgnitionPath extends IgnitionPathBase {
   lazy val timeFromIgnitionToMaxLength: Double =
     if (!hasIgnition) 0.0
     else (timeStepForMaxLength - ignitionTimeStep) * ModelSettings.ComputationTimeInterval 
-
+    
+  /**
+   * Mean rate of spread calculated from segments for which the individual
+   * rate of spread is greater than [[ModelSettings.MinRateForStratumSpread]].
+   */
+  lazy val basicROS: Double =
+    if (!hasIgnition) 0.0
+    else {
+      val xs = segments.head.start.x +: segments.map(_.end.x)
+      
+      val xpairs = xs zip xs.tail
+      val rates = xpairs map { case (x0, x1) => (x1 - x0) / ModelSettings.ComputationTimeInterval }
+      val spreaders = rates filter (_ > ModelSettings.MinRateForStratumSpread)
+      
+      if (spreaders.isEmpty) 0.0
+      else Stats.mean(spreaders)
+    }
+      
 }
 

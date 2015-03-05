@@ -59,7 +59,7 @@ trait IgnitionPathBuilder extends IgnitionPathBase {
  * Usage:
  * {{{
  * // At the beginning of an ignition path simulation
- * val resultBuilder = IgnitionPathBuilder(runType, ignitionContext)
+ * val pathBuilder = IgnitionPathBuilder(ignitionContext, speciesComponent, initialPoint)
  *
  * // During the simulation
  * resultBuilder.addSegment(timeStep, startPoint, endPoint)
@@ -107,12 +107,14 @@ object IgnitionPathBuilder {
     def preIgnitionData = preIgnitionBuffer.toVector
     def segments = segmentBuffer.toVector
 
-    def addSegment(timeStep: Int, start: Coord, end: Coord) {
-      if (!hasIgnition || timeStep == segmentBuffer.last.timeStep + 1)
-        segmentBuffer += new IgnitedSegment(timeStep, start, end)
+    def addSegment(timeStep: Int, start: Coord, end: Coord): Unit = {
+      if (!hasIgnition)
+        require(start.almostEq(initialPoint))
       else
-        throw new IllegalArgumentException(
-          s"Time step for ignited segment ($timeStep) should be later than previous time (${segmentBuffer.last.timeStep})")
+        require(timeStep == segmentBuffer.last.timeStep + 1,
+            s"Time step for ignited segment ($timeStep) should be later than previous time (${segmentBuffer.last.timeStep})")
+            
+      segmentBuffer += new IgnitedSegment(timeStep, start, end)
     }
 
     def numSegments = segmentBuffer.size

@@ -82,6 +82,15 @@ object ModelSettings {
    * The minimum height above surface for calculation of wind speed (m).
    */
   val MinHeightForWindModel: Double = 0.1
+  
+  /**
+   * The minimum rate of spread for a stratum fire to be classified as spreading.
+   *
+   * A stratum fire must spread at at least this rate for 
+   * [[ModelSettings.MinTimeStepsForStratumSpread]] time steps to be classified as 
+   * spreading through the stratum.
+   */
+  val MinRateForStratumSpread: Double = 2.7778e-3  // == 0.01 km/h
 
   /**
    * Minimum temperature for canopy heating (degrees Celsius).
@@ -91,6 +100,16 @@ object ModelSettings {
    */
   val MinTempForCanopyHeating: Double = 100
 
+  /**
+   * The minimum number of time steps that a stratum fire must spread to be
+   * classified as spreading through the stratum.
+   *
+   * A stratum fire must spread at at least this rate for 
+   * [[ModelSettings.MinTimeStepsForStratumSpread]] time steps to be classified as 
+   * spreading through the stratum.
+   */
+  val MinTimeStepsForStratumSpread = 2
+  
   /**
    * Number of steps used to compute flame penetration at each time step.
    *
