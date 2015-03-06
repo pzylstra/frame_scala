@@ -73,6 +73,42 @@ class IgnitionPathSpec extends IgnitionPathTestBase with PropertyChecks {
     
   }
   
+  it should "return correctly sort segments by length (descending) and time (ascending)" in {
+    forAll (distanceLists(minDist=0.0, maxDist=10.0, maxN=5)) { distances =>
+      val n = distances.size
+      
+      // duplicate a random number of distances so we can check 
+      // that time sorting of equal length segments is working
+      val ndup = scala.util.Random.nextInt(n)
+      val dups = distances.take(ndup)
+      val all = distances ++ dups
+      
+      // work out expected order
+      val allWithTime = all zip (1 to all.length)
+      
+      val expectedLengthsAndTimes = allWithTime.sortWith { case ((la, ta), (lb, tb)) => 
+        // a is longer than b, or they are same length and a is earlier than b
+        Numerics.gt(la, lb) || 
+        (Numerics.almostEq(la, lb) && ta < tb)
+      }
+      
+      // create ignition path based on distances
+      val segmentParams = makeSegmentParams(all, startTime=1)
+      val path = makePath(segmentParams: _* )
+      val sortedSegments = path.segmentsByLengthAndTime
+      
+      // compare sorted segments from path with expected results
+      sortedSegments.size should be (expectedLengthsAndTimes.size)
+      
+      for (i <- 0 until sortedSegments.size) {
+        val seg = sortedSegments(i)
+        val (expLen, expT) = expectedLengthsAndTimes(i)
+        seg.timeStep should be (expT)
+        seg.length should be (expLen +- Tol)
+      }
+    }
+  }
+  
   it should "return 0.0 for basic rate of spread when ignition did not occur" in {
     val emptyPath = newBuilder().toIgnitionPath
     emptyPath.basicROS should be (0.0)

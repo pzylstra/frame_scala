@@ -40,7 +40,8 @@ class WeightedFlameAttributesSpec extends MockSpec with PropertyChecks {
     val spComp = SpeciesComponent(mockSp1, 1.0)
 
     forAll(SegmentCounts) { numSeg =>
-      val segments = createUniformSegments(numSeg)
+      val lengths = List.fill(numSeg)(1.0)
+      val segments = createSegments(lengths)
       val path = createPath(spComp, StratumLevel.MidStorey)(segments)
       val attr = AttributesFunc(Vector(path))
       attr.size should be(numSeg)
@@ -58,26 +59,41 @@ class WeightedFlameAttributesSpec extends MockSpec with PropertyChecks {
     }
   }
 
-  it should "return the correct weighted average time to max flame length (1 segment)" in {
+  it should "return the correct weighted average time to max flame length" in {
     val level = StratumLevel.MidStorey 
-    val igTime1 = 1
-    val igTime2 = 5
     
-    forAll(SpeciesWeights) { wt1 =>
-      val wt2 = 1.0 - wt1
-      val spComp1 = SpeciesComponent(mockSp1, wt1)
-      val spComp2 = SpeciesComponent(mockSp2, wt2)
-      
-      val path1 = createPath(spComp1, level) {
-        createUniformSegments(1, ignitTimeStep=igTime1)
-      }
+    val shortLen = 0.1
+    val longLen = 1.0
+    
+    // function to make a sequence of 0 or more short lengths followed by a single long length
+    def makeLenths(numShort: Int) = Vector.fill(numShort)(shortLen) :+ longLen
 
-      val path2 = createPath(spComp2, level) {
-        createUniformSegments(1, ignitTimeStep=igTime2)
-      }
-      
-      val attr = AttributesFunc(Vector(path1, path2))
-      attr.timeToLongestFlame should be(igTime1 * wt1 + igTime2 * wt2)
+    /*
+     * We generate random weights, ignition times and times from ignition to max length
+     * for two species. The calculation of weighted average time to max length should
+     * only depend on the weights and the individual times to max length, but we include
+     * random ignition time just to test things as per use in simulation.
+     */
+    forAll(SpeciesWeights, Gen.choose(1, 5), Gen.choose(1, 5), Gen.choose(0, 5), Gen.choose(0, 5)) {
+      (wt1, igTime1, igTime2, dt1, dt2) =>
+        val wt2 = 1.0 - wt1
+        val spComp1 = SpeciesComponent(mockSp1, wt1)
+        val spComp2 = SpeciesComponent(mockSp2, wt2)
+
+        // dt1 and dt2 are number of time steps after ignition for max segment length
+        val lengths1 = makeLenths(dt1)
+        val lengths2 = makeLenths(dt2)
+
+        val path1 = createPath(spComp1, level) {
+          createSegments(lengths1, igTime1)
+        }
+
+        val path2 = createPath(spComp2, level) {
+          createSegments(lengths2, igTime2)
+        }
+
+        val attr = AttributesFunc(Vector(path1, path2))
+        attr.timeToLongestFlame should be(dt1 * wt1 + dt2 * wt2)
     }
   }
 
@@ -107,11 +123,17 @@ class WeightedFlameAttributesSpec extends MockSpec with PropertyChecks {
       stratumWindSpeed = 5.0)
   }
 
-  def createUniformSegments(numSegments: Int, length: Double = 1.0, ignitTimeStep: Int = 0): IndexedSeq[IgnitedSegment] = {
-    createSegments(numSegments, startFn = i => Coord.Origin, endFn = i => Coord(0.0, length), ignitTimeStep)
+  def createUniformSegments(n: Int, length: Double = 1.0, ignitTimeStep: Int = 1) =
+    createSegments(Vector.fill(n)(length), ignitTimeStep)
+    
+  def createSegments(segmentLengths: Seq[Double], ignitTimeStep: Int = 1): IndexedSeq[IgnitedSegment] = {
+    val xs = segmentLengths.scanLeft(0.0)(_ + _)
+    val starts = xs.init map (x => Coord(x, 0.0))
+    val ends   = xs.tail map (x => Coord(x, 0.0))
+    
+    (0 until segmentLengths.size) map { i =>
+      IgnitedSegment(i + ignitTimeStep, starts(i), ends(i)) 
+    }
   }
-  
-  def createSegments(numSegments: Int, startFn: (Int) => Coord, endFn: (Int) => Coord, ignitTimeStep: Int): IndexedSeq[IgnitedSegment] =
-    (0 until numSegments) map (i => IgnitedSegment(i + ignitTimeStep, startFn(i), endFn(i)))
-  
+    
 }
