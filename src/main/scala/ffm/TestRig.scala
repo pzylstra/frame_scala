@@ -29,13 +29,14 @@ object TestRig {
 
     // run the fire model
     val pathModel = new SpikeIgnitionPathModel
-    
-    // TODO: read fire line length from parameters file (check with Phil if it ever changes)
-    val fireModel = new SingleSiteFireModel(pathModel, DefaultPlantFlameModel)(_, _, _) //(site, includeCanopy=true, fireLineLength=100.0)
+    val plantFlameModel = DefaultPlantFlameModel
 
-    val result1 = fireModel(site, true, 100.0).run()
+    // TODO: read fire line length from parameters file (check with Phil if it ever changes)
+    val fireLineLength = 100.0
     
-    val output1 = ResultFormatter.format(result1)
+    val result = SingleSiteFireModelRunner.run(pathModel, plantFlameModel)(site, fireLineLength)    
+
+    val output = ResultFormatter.format(result)
     
     val outPath = {
       import FileUtils._
@@ -44,24 +45,7 @@ object TestRig {
         outName = removeExtension(inName) + "_out_scala.txt"
       } yield makePath(defaultOutDir, outName)
     }
-    
-    // If there was a canopy stratum with fire spread between crowns, re-run with
-    // includeCanopy = false (for altered wind speed calculation)
-    val fireSpreadInCanopy = result1.paths exists { path => 
-      path.hasIgnition &&
-      path.context.stratumLevel == StratumLevel.Canopy &&
-      path.context.runType == IgnitionRunType.StratumRun
-    }
 
-    val output =
-      if (fireSpreadInCanopy) {
-        val result2 = fireModel(site, false, 100.0).run()
-
-        val output2 = ResultFormatter.format(result2)
-
-        output1 + "\n\n==== Second run ====\n\n" + output2
-      } else output1
-    
     if (outPath.isDefined) 
       FileUtils.withPrintWriter(outPath.get) { writer => writer.println(output) }
 
@@ -96,14 +80,27 @@ object ResultFormatter {
   
   def format(fmr: FireModelResult): String = {
     val buf = new StringBuilder
+    val add = adder(buf)
     
-    buf ++= formatSurfaceParams(fmr.surfaceParams) + '\n'
+    add( formatRunResult(fmr.run1) )
     
-    if (fmr.paths.isEmpty) 
+    if (fmr.hasSecondRun) {
+      add( "\n\n=== Second run ===\n\n" )
+      add( formatRunResult(fmr.run2) )
+    }
+    
+    buf.toString
+  }
+    
+  def formatRunResult(runResult: FireModelRunResult): String = {
+    val buf = new StringBuilder    
+    buf ++= formatSurfaceParams(runResult.surfaceParams) + '\n'
+    
+    if (runResult.paths.isEmpty) 
       buf ++= "No ignition paths"
     else
-      fmr.paths foreach { path => buf ++= formatPath(path) + '\n' }
-
+      runResult.paths foreach { path => buf ++= formatPath(path) + '\n' }
+    
     buf.toString
   }
   

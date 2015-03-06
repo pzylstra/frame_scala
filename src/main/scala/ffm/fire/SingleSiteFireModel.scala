@@ -5,6 +5,32 @@ import ffm.forest._
 import ffm.geometry._
 import ffm.numerics.Numerics
 
+
+object SingleSiteFireModelRunner {
+  
+  def run(pathModel: IgnitionPathModel, plantFlameModel: PlantFlameModel)(site: Site, fireLineLength: Double): FireModelResult = {
+    val fireModel = new SingleSiteFireModel(pathModel, DefaultPlantFlameModel)(_, _, _)
+    val run1 = fireModel(site, true, fireLineLength).run()
+    
+    val fireSpreadInCanopy = run1.paths exists { path => 
+      path.hasIgnition &&
+      path.context.stratumLevel == StratumLevel.Canopy &&
+      path.context.runType == IgnitionRunType.StratumRun
+    }
+    
+    // If there was a canopy stratum with fire spread between crowns, re-run with
+    // includeCanopy = false (for altered wind speed calculation)
+    val run2 = 
+      if (fireSpreadInCanopy)
+        fireModel(site, false, fireLineLength).run()
+      else
+        new FireModelRunResult( new SurfaceParams(site, fireLineLength, false) )
+    
+    FireModelResult(run1, run2)
+  }
+}
+
+
 /**
  * Models fire in a single site.
  */
@@ -43,7 +69,7 @@ class SingleSiteFireModel(pathModel: IgnitionPathModel, plantFlameModel: PlantFl
   /**
    * Runs the fire model.
    */
-  def run(): FireModelResult = {
+  def run(): FireModelRunResult = {
     val initPreHeatingFlame = PreHeatingFlame(
       surfaceParams.flames.head,
       StratumLevel.Surface,
@@ -55,7 +81,7 @@ class SingleSiteFireModel(pathModel: IgnitionPathModel, plantFlameModel: PlantFl
       Vector(initPreHeatingFlame),
       preHeatingEndTime = -1, // TODO: can we get rid of this magic initial value ?
       new FlameConnections(),
-      new FireModelResult(surfaceParams))
+      new FireModelRunResult(surfaceParams))
   }
 
   /**
@@ -66,7 +92,7 @@ class SingleSiteFireModel(pathModel: IgnitionPathModel, plantFlameModel: PlantFl
     preHeatingFlames: IndexedSeq[PreHeatingFlame],
     preHeatingEndTime: Double,
     flameConnections: FlameConnections,
-    curData: FireModelResult): FireModelResult = {
+    curData: FireModelRunResult): FireModelRunResult = {
 
     if (strata.isEmpty) {
       /*
