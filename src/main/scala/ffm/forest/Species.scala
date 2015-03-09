@@ -28,6 +28,7 @@ trait Species {
   def clumpSeparation: Double
 
   def ignitionTemperature: Double
+  def ignitabilityCoef: Double
 }
 
 /**
@@ -146,7 +147,19 @@ object Species {
      */
     val ignitionTemperature: Double =
       (ignitionTemperatureProvided orElse ignitionTemperatureModelled).get
-
+      
+    /**
+     * Ignitability coefficient.
+     */
+    val ignitabilityCoef: Double = {
+      val leafFactor = leafForm match {
+        case LeafForm.Round => 4.0
+        case _ => 2.0
+      }
+      
+      100 * leafMoisture * leafThickness * 1000 / leafFactor
+    }
+    
     /**
      * Estimated leaf density.
      */

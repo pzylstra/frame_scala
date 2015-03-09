@@ -37,17 +37,20 @@ class Stratum private (
   /** Weighted average crown mid-height. */
   val averageMidHeight = wtAv( sc => (crown(sc).top + crown(sc).bottom) / 2 )
   
-  /** Modelled plant separation. */
+  /** Weighted average plant separation. */
   val modelPlantSep = math.max(plantSep, averageWidth)
   
-  /** Modelled canopy cover. */
+  /** Weighted average canopy cover. */
   val cover = { 
     val p = averageWidth / modelPlantSep 
     p * p 
   }
   
-  /** Modelled leaf area index. */
+  /** Weighted average leaf area index. */
   val leafAreaIndex = cover * wtAv( sc => sc.species.leafAreaIndex )
+  
+  /** Weighted average of species ignitability coefficients. */
+  val ignitabilityCoef = wtAv( sc => sc.species.ignitabilityCoef )
   
   
   override def toString = 
