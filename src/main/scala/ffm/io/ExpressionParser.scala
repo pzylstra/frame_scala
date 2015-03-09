@@ -57,7 +57,7 @@ trait ExpressionParser extends JavaTokenParsers {
    *  
    *  We allow numbers and a few non-alpha characters to be in a word.
    */
-  def word: Parser[String] = """\w[0-9\w\/\-\_]*""".r
+  def word: Parser[String] = """\w[\.0-9\w\/\-\_]*""".r
     
   /** Parses two numbers delimited by commas representing mean and range (uniform distribution). */ 
   def numericRange: Parser[NumericRange] = 
