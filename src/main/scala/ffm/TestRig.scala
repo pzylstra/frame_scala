@@ -96,10 +96,7 @@ object ResultFormatter {
     val buf = new StringBuilder    
     buf ++= formatSurfaceParams(runResult.surfaceParams) + '\n'
     
-    if (runResult.paths.isEmpty) 
-      buf ++= "No ignition paths"
-    else
-      runResult.paths foreach { path => buf ++= formatPath(path) + '\n' }
+    runResult.stratumOutcomes foreach { outcome => buf ++= formatOutcome(outcome) + '\n' }
     
     buf.toString
   }
@@ -116,18 +113,30 @@ object ResultFormatter {
     buf.toString
   }
 
+  def formatOutcome(outcome: StratumOutcome): String = {
+    val buf = new StringBuilder
+    val add = adder(buf)
+   
+    outcome.plantPaths foreach (path => add(formatPath(path)))
+    outcome.stratumPaths foreach (path => add(formatPath(path)))
+    
+    buf.toString
+  }
+    
+    
   def formatPath(path: IgnitionPath): String = {
     val buf = new StringBuilder
     val ctxt = path.context
     
     val add = adder(buf)
 
-    add(s"${ctxt.stratumLevel} ${path.speciesComponent}")
+    add(s"${ctxt.stratumLevel} ${ctxt.runType}: ${path.speciesComponent.species.name}")
 
     add(s"Best result for initial point ${path.initialPoint}")
 
     val preHeating = path.preIgnitionData.filter(_.isInstanceOf[PreHeatingDrying])
     if (!preHeating.isEmpty) {
+      add("")
       add(PreIgnitionFormatter.preHeatingDryingHeader)
       preHeating foreach { pid =>
         add(PreIgnitionFormatter(pid))
@@ -136,6 +145,7 @@ object ResultFormatter {
 
     val incident = path.preIgnitionData.filter(_.isInstanceOf[IncidentDrying])
     if (!incident.isEmpty) {
+      add("")
       add(PreIgnitionFormatter.incidentDryingHeader)
       incident foreach { pid =>
         add(PreIgnitionFormatter(pid))

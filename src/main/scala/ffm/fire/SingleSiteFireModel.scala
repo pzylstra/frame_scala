@@ -1,8 +1,18 @@
 package ffm.fire
 
+import scala.Vector
+
 import ffm.ModelSettings._
-import ffm.forest._
-import ffm.geometry._
+import ffm.forest.Site
+import ffm.forest.Species
+import ffm.forest.SpeciesComponent
+import ffm.forest.Stratum
+import ffm.forest.StratumLevel
+import ffm.forest.VegetationWindModel
+import ffm.geometry.Coord
+import ffm.geometry.CrownPoly
+import ffm.geometry.Line
+import ffm.geometry.Ray
 import ffm.numerics.Numerics
 
 
@@ -12,10 +22,9 @@ object SingleSiteFireModelRunner {
     val fireModel = new SingleSiteFireModel(pathModel, DefaultPlantFlameModel)(_, _, _)
     val run1 = fireModel(site, true, fireLineLength).run()
     
-    val fireSpreadInCanopy = run1.paths exists { path => 
-      path.hasIgnition &&
-      path.context.stratumLevel == StratumLevel.Canopy &&
-      path.context.runType == IgnitionRunType.StratumRun
+    val fireSpreadInCanopy = run1.stratumOutcomes exists { outcome =>
+      outcome.stratum.level  == StratumLevel.Canopy &&
+      outcome.stratumFlameSeries.isDefined
     }
     
     // If there was a canopy stratum with fire spread between crowns, re-run with
@@ -129,16 +138,19 @@ class SingleSiteFireModel(pathModel: IgnitionPathModel, plantFlameModel: PlantFl
          * Add the paths (which will have pre-ignition data) to the accumulator
          * and process the remaining strata. 
          */
+        
+        val outcome = StratumOutcome.nonIgnitionOutcome(stratum, plantRunResult.paths)
+        
         processStrata(
           strata.tail,
           preHeatingFlames,
           preHeatingEndTime,
           flameConnections,
-          curData add plantRunResult.paths)
+          curData.withStratumOutcome(outcome))
 
       } else {
-        val plantFlames = getPlantFlames(plantRunResult, stratumWindSpeed)
-
+        val plantFlames = getPlantFlames(plantRunResult, stratumWindSpeed)        
+        
         val canopyHeatingDistance =
           if (stratum.level == StratumLevel.Canopy) calculateCanopyHeatingDistance(stratum, curData.flameSeriess)
           else 0.0
@@ -154,11 +166,13 @@ class SingleSiteFireModel(pathModel: IgnitionPathModel, plantFlameModel: PlantFl
 
         val stratumFlames = getStratumFlames(stratumRunResult, stratumWindSpeed)
 
-        val bigFlames =
-          if (maxFlameLength(plantFlames) > maxFlameLength(stratumFlames)) plantFlames
-          else stratumFlames
-
-        val flameSeries = new StratumFlameSeries(stratum, bigFlames)
+        val outcome = StratumOutcome.ignitionOutcome(
+          stratum,
+          plantRunResult.paths,
+          plantFlames,
+          stratumRunResult.paths,
+          stratumFlames
+        )
 
         /*
          * TODO: logic for connection based on comparing max plant flame length to max stratum flame length.
@@ -174,6 +188,9 @@ class SingleSiteFireModel(pathModel: IgnitionPathModel, plantFlameModel: PlantFl
           plantRunResult.flameAttr.ignitionTime + 
           plantRunResult.flameAttr.timeToLongestFlame
 
+        // If we are here, it should be safe to call `get` on the largestFlameSeries Option.
+        val flameSeries = outcome.largestFlameSeries.get  
+          
         val nextPHFlame = createPreHeatingFlame(
           flameSeries, 
           startTime = preHeatingStartTime, 
@@ -190,7 +207,7 @@ class SingleSiteFireModel(pathModel: IgnitionPathModel, plantFlameModel: PlantFl
           preHeatingFlames :+ nextPHFlame,
           preHeatingEndTime = preHeatingStartTime,
           nextConnections,
-          curData add plantRunResult.paths add stratumRunResult.paths add flameSeries)
+          curData.withStratumOutcome(outcome))
       }
     }
   }

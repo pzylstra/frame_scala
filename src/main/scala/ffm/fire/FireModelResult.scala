@@ -6,7 +6,7 @@ package ffm.fire
 case class FireModelResult(run1: FireModelRunResult, run2: FireModelRunResult) {
   
   val hasSecondRun: Boolean =
-    run2.paths.nonEmpty
+    run2.stratumOutcomes.nonEmpty
 
 }
 
@@ -17,24 +17,25 @@ case class FireModelResult(run1: FireModelRunResult, run2: FireModelRunResult) {
  */
 case class FireModelRunResult (
     surfaceParams: SurfaceParams, 
-    paths: IndexedSeq[IgnitionPath], 
-    flameSeriess: IndexedSeq[StratumFlameSeries],
+    stratumOutcomes: IndexedSeq[StratumOutcome],
     combinedFlames: IndexedSeq[Flame]
     ) {
   
   /**
-   * Creates a new result object with empty vectors for paths,
-   * flameSeriess and combinedFlames.
+   * Creates an empty result object.
    */
   def this(surfaceParams: SurfaceParams) =
-    this(surfaceParams, Vector.empty, Vector.empty, Vector.empty)
+    this(surfaceParams, Vector.empty, Vector.empty)
+  
+  /**
+   * The flame series with the largest flame for each stratum.
+   */
+  val flameSeriess: IndexedSeq[StratumFlameSeries] =
+    stratumOutcomes.flatMap(_.largestFlameSeries)
     
-  /** Adds ignition paths. */
-  def add(newPaths: IndexedSeq[IgnitionPath]) = copy(paths = paths ++ newPaths)
-
-  /** Adds a flame series. */
-  def add(newSeries: StratumFlameSeries) = copy(flameSeriess = flameSeriess :+ newSeries)
+  def withStratumOutcome(outcome: StratumOutcome) = copy(stratumOutcomes = stratumOutcomes :+ outcome)
   
   /** Sets the combined flames. */
   def withCombinedFlames(flames: IndexedSeq[Flame]) = copy(combinedFlames = flames)
+  
 }
