@@ -84,6 +84,8 @@ class Flame(val flameLength: Double, val angle: Double, val origin: Coord, val d
       )
   }
 
+  override def toString: String = 
+    s"Flame(origin $origin, len $flameLength, angle $angle, depth $depthIgnited, tmp $deltaTemperature)"
 }
 
 
@@ -96,6 +98,12 @@ object Flame {
    */
   def apply(length: Double, angle: Double, origin: Coord, depthIgnited: Double, deltaTemperature: Double) = 
     new Flame(length, angle, origin, depthIgnited, deltaTemperature)
+  
+  /**
+   * Creates a new flame.
+   */
+  def apply(params: FlameParams, angle: Double) =
+    new Flame(params.length, angle, params.origin, params.depth, params.temperature)
 
   /**
    * Calculates flame angle.

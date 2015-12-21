@@ -5,6 +5,7 @@ import ffm.geometry.Coord
 import ffm.forest.{ Species, SpeciesComponent }
 
 
+
 /**
  * Holds weighted average attributes extracted from a collection of
  * IgnitionPaths.
@@ -20,21 +21,8 @@ trait WeightedFlameAttributes {
   /** Weighted average time from ignition to maximum flame length (zero if no data). */
   def timeToLongestFlame: Double
   
-  /** Weighted average flame length per ignited segment over all paths. */
-  def flameLengths: Seq[Double]
-  
-  /** Weighted average flameDepths per ignited segment over all paths. */
-  def flameDepths: Seq[Double]
-  
-  /** Weighted average flame origin per ignited segment over all paths. */
-  def origins: Seq[Coord]
-  
-  /** 
-   *  Weighted average flame temperature per ignited segment over all paths.
-   * 
-   *  The weighting is based both on species composition and flame length. 
-   */
-  def temperatures: Seq[Double]
+  /** Weighted flame parameters (length, depth, origin and temperature). */
+  def flameParams: IndexedSeq[FlameParams]
   
   /**
    * Size of the sequence attributes.
@@ -62,10 +50,7 @@ object WeightedFlameAttributes {
   object Empty extends WeightedFlameAttributes {
     val ignitionTime = 0.0
     val timeToLongestFlame = 0.0
-    val flameLengths = Vector.empty[Double]
-    val flameDepths = Vector.empty[Double]
-    val origins = Vector.empty[Coord]
-    val temperatures = Vector.empty[Double]
+    val flameParams = Vector.empty[FlameParams]
     val size = 0
     val isEmpty = true
   }
@@ -73,15 +58,11 @@ object WeightedFlameAttributes {
   case class NonEmpty(
     ignitionTime: Double,
     timeToLongestFlame: Double,
-    flameLengths: Seq[Double],
-    flameDepths: Seq[Double],
-    origins: Seq[Coord],
-    temperatures: Seq[Double]) extends WeightedFlameAttributes {
+    flameParams: IndexedSeq[FlameParams]) extends WeightedFlameAttributes {
 
-    val size = flameLengths.size
+    val size = flameParams.size
 
-    require(size > 0 && flameDepths.size == size && origins.size == size && temperatures.size == size,
-      "All attribute sequences must be non-empty and have the same length")
+    require(size > 0, "Bummer - looks like bad programming. No flame parameters found.")
 
     val isEmpty = false
   }
@@ -119,17 +100,20 @@ object WeightedFlameAttributes {
         val ignitionTime = path.ignitionTime * wt
         val timeToMaxLen = path.timeFromIgnitionToMaxLength * wt
 
-        val lengths = segments map (seg => plantFlameModel.flameLength(species, seg.length) * wt)
-        val depths = segments map (_.length * wt)
-        val origins = segments map (_.start.multipliedBy(wt))
-
         val t =
           if (Species.isGrass(species, stratumLevel)) GrassFlameDeltaTemperature
           else MainFlameDeltaTemperature
+          
+        val flameParams = segments map { seg =>
+          val length = plantFlameModel.flameLength(species, seg.length) * wt
+          val depth = seg.length * wt
+          val origin = seg.start multipliedBy wt
+          val temp = length * t
+          
+          FlameParams(length, depth, origin, temp)
+        }
 
-        val lengthWeightedTemps = lengths.map(_ * t)
-
-        val attrs = NonEmpty(ignitionTime, timeToMaxLen, lengths, depths, origins, lengthWeightedTemps)
+        val attrs = NonEmpty(ignitionTime, timeToMaxLen, flameParams)
 
         iter(combine(curAttrs, attrs), curPaths.tail)
       }
@@ -141,8 +125,8 @@ object WeightedFlameAttributes {
     // If we have data, finalize the calculation of length-weighted temperatures
     attrs match {
       case attrs: NonEmpty =>
-        val finalTemps = (attrs.temperatures zip attrs.flameLengths) map { case (t, len) => t / len }        
-        attrs.copy(temperatures = finalTemps)
+        val finalParams = (attrs.flameParams) map { case FlameParams(len, dep, or, t) => FlameParams(len, dep, or, t / len) }        
+        attrs.copy(flameParams = finalParams)
         
       case _ =>
         attrs
@@ -152,20 +136,26 @@ object WeightedFlameAttributes {
   /**
    * Combines data from two weighted attribute objects into a single object.
    */
-  private def combine(attr1: WeightedFlameAttributes, attr2: WeightedFlameAttributes) = {
+  private def combine(attr1: WeightedFlameAttributes, attr2: WeightedFlameAttributes): WeightedFlameAttributes = {
     import ffm.util.IndexedSeqUtils._
-
+    
     if (attr1.isEmpty && attr2.isEmpty) Empty
     else if (attr1.isEmpty) attr2
     else if (attr2.isEmpty) attr1
-    else
+    else {
+      val combinedParams = attr1.flameParams.combine(attr2.flameParams) { (fp1, fp2) =>
+        FlameParams(
+          length = fp1.length + fp2.length,
+          depth = fp1.depth + fp2.depth,
+          origin = fp1.origin add fp2.origin,
+          temperature = fp1.temperature + fp2.temperature)
+      }
+
       NonEmpty(
         attr1.ignitionTime + attr2.ignitionTime,
         attr1.timeToLongestFlame + attr2.timeToLongestFlame,
-        attr1.flameLengths.combine(attr2.flameLengths, _ + _),
-        attr1.flameDepths.combine(attr2.flameDepths, _ + _),
-        attr1.origins.combine(attr2.origins, (cthis, cthat) => cthis.add(cthat)),
-        attr1.temperatures.combine(attr2.temperatures, _ + _))
+        combinedParams)
+    }
   }
-
+  
 }

@@ -1,9 +1,9 @@
 package ffm.geometry
 
 import com.vividsolutions.jts.{ geom => JTS }
-
 import JTSImplicits._
 import ffm.numerics.Numerics
+import com.vividsolutions.jts.geom.TopologyException
   
 
 /**
@@ -75,13 +75,22 @@ class CrownPoly private (jtsPoly: JTS.Polygon) {
     val coords = Array(ray.origin, outsideCoord)
 
     val jtsLine = JTSGeometryFactory().createLineString(coords)
-    val res: JTS.Geometry = jtsPoly.intersection(jtsLine)
 
-    if (res.isEmpty()) None
-    else Some({
-      val jtsCoords = res.getCoordinates()
-      Segment(jtsCoords.head, jtsCoords.last)
-    })
+    try {
+      val res: JTS.Geometry = jtsPoly.intersection(jtsLine)
+
+      if (res.isEmpty()) None
+      else Some({
+        val jtsCoords = res.getCoordinates()
+        Segment(jtsCoords.head, jtsCoords.last)
+      })
+    } catch {
+      case ex: TopologyException =>
+        // TODO - Needs checking. This happens for a small number 
+        // of input param files.
+        val exc = ex.getCoordinate()
+        None
+    }
   }
 
   /**

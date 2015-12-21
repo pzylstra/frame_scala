@@ -6,15 +6,52 @@ import ffm.fire._
 import ffm.util.FileUtils
 import ffm.forest.StratumLevel
 
-object TestRig {
-
-  val defaultInPath = "c:/michael/coding/cpp/forest_flammability_model/2.txt"
-  val defaultOutDir = "c:/michael/coding/ffm/testing"
+object BatchRunner {
   
-  def main(args: Array[String]) {
+  val paramDir = "c:/michael/coding/ffm/params"
+  val paramExt = "txt"
+  
+  val paramFilesSubset = List("93a.txt")
+  
+  def main(args: Array[String]): Unit = {
+    val allFiles = (new java.io.File(paramDir)).listFiles.filter(_.isFile).toList
+    
+    val paramFiles = 
+      if (paramFilesSubset.isEmpty) allFiles
+      else allFiles.filter { f => paramFilesSubset.contains(f.getName) }
+    
+    paramFiles.foreach { pf =>
+      val name = pf.getPath
+      if (name.endsWith(paramExt)) {
+        println(name)
+        run(name)
+      }
+    }
+  }
+  
 
-    val path = if (args.length == 1) args(0) else defaultInPath
-    val modelDef = ParamFileParser.readTextFormatFile(path).get
+  def run(paramPath: String, outputDir: String = "c:/michael/coding/ffm/testing"): Unit = {
+    
+    val result = Runner.run(paramPath)
+    
+    val outPath = {
+      import FileUtils._
+      for {
+        inName <- fileName(paramPath)
+        outName = removeExtension(inName) + "_out_scala.txt"
+      } yield makePath(outputDir, outName)
+    }
+
+    if (outPath.isDefined) 
+      FileUtils.withPrintWriter(outPath.get) { writer => writer.println(result) }
+  }
+}
+
+object Runner {
+
+  def run(paramPath: String): String = {
+
+    val modelDef = ParamFileParser.readTextFormatFile(paramPath).get
 
     // get fallback value for dead leaf moisture from the surface 
     // dead fuel moisture parameter
@@ -36,21 +73,7 @@ object TestRig {
     
     val result = SingleSiteFireModelRunner.run(pathModel, plantFlameModel)(site, fireLineLength)    
 
-    val output = ResultFormatter.format(result)
-    
-    val outPath = {
-      import FileUtils._
-      for {
-        inName <- fileName(path)
-        outName = removeExtension(inName) + "_out_scala.txt"
-      } yield makePath(defaultOutDir, outName)
-    }
-
-    if (outPath.isDefined) 
-      FileUtils.withPrintWriter(outPath.get) { writer => writer.println(output) }
-
-    println(output)
-    
+    ResultFormatter.format(result)
   }
 }
 
@@ -81,6 +104,13 @@ object ResultFormatter {
   def format(fmr: FireModelResult): String = {
     val buf = new StringBuilder
     val add = adder(buf)
+    
+    fmr.stratumResults foreach { res => 
+      add( s"${res.level}" )
+      add( f"  flame length: ${res.flameLength}%.2f" )
+      add( f"  flame angle:  ${res.flameAngle}%.2f" )
+      add( f"  flame height:  ${res.flameHeight}%.2f" )
+    }
     
     add( formatRunResult(fmr.run1) )
     

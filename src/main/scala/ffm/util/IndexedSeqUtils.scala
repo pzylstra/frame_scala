@@ -17,7 +17,7 @@ import scala.annotation.tailrec
  */
 object IndexedSeqUtils {
 
-  implicit class IndexedSeqEx[A](seq: Seq[A]) {
+  implicit class IndexedSeqEx[A](seq: IndexedSeq[A]) {
     
     /**
      * Returns the sequence of 2-tuples consisting of successive pairs
@@ -38,7 +38,7 @@ object IndexedSeqUtils {
      * applying function f to the overlapping input elements, followed by the
      * the remaining elements of the longer sequence if n != n2.
      */
-    def combine(seq2: Seq[A], f: (A, A) => A): Seq[A] = {
+    def combine(seq2: IndexedSeq[A])(f: (A, A) => A): IndexedSeq[A] = {
       val (n, n2) = (seq.length, seq2.length)
       val common = (seq zip seq2) map { case(a, a2) => f(a, a2) }
       

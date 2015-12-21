@@ -35,7 +35,7 @@ object SingleSiteFireModelRunner {
       else
         new FireModelRunResult( new SurfaceParams(site, fireLineLength, false) )
     
-    FireModelResult(run1, run2)
+    FireModelResult(site, fireLineLength, run1, run2)
   }
 }
 
@@ -188,8 +188,13 @@ class SingleSiteFireModel(pathModel: IgnitionPathModel, plantFlameModel: PlantFl
           plantRunResult.flameAttr.ignitionTime + 
           plantRunResult.flameAttr.timeToLongestFlame
 
-        // If we are here, it should be safe to call `get` on the largestFlameSeries Option.
-        val flameSeries = outcome.largestFlameSeries.get  
+        // Get the flame series with largest max flame length.
+        // (safe to call `get` on the Option result since we must
+        // have at least plant flames)
+        val flameSeries = outcome.selectFlameSeries{ (fs1, fs2) => 
+            if (fs1.maxFlameLength > fs2.maxFlameLength) fs1
+            else fs2
+        }.get
           
         val nextPHFlame = createPreHeatingFlame(
           flameSeries, 
@@ -235,14 +240,16 @@ class SingleSiteFireModel(pathModel: IgnitionPathModel, plantFlameModel: PlantFl
       val avWidth = plantRunResult.stratum.averageWidth
       val plantSep = plantRunResult.stratum.modelPlantSep
 
-      val mergedFlameLengths = plantRunResult.flameAttr.flameLengths map { flen =>
-        Flame.lateralMergedFlameLength(flen, fireLineLength, avWidth, plantSep)
+      val lengths = plantRunResult.flameAttr.flameParams map (_.length)
+      val mergedFlameLengths = lengths map { len =>
+        Flame.lateralMergedFlameLength(len, fireLineLength, avWidth, plantSep)
       }
 
       val flames = (0 until plantRunResult.flameAttr.size) map { i =>
         val length = mergedFlameLengths(i)
         val angle = Flame.windEffectFlameAngle(length, stratumWindSpeed, site.slope)
-        Flame(length, angle, plantRunResult.flameAttr.origins(i), plantRunResult.flameAttr.flameDepths(i), plantRunResult.flameAttr.temperatures(i))
+        val fp = plantRunResult.flameAttr.flameParams(i)
+        Flame(length, angle, fp.origin, fp.depth, fp.temperature)
       }
 
       flames
@@ -259,8 +266,8 @@ class SingleSiteFireModel(pathModel: IgnitionPathModel, plantFlameModel: PlantFl
     else {
       val attr = stratumRunResult.flameAttr
       val flames = (0 until attr.size) map { i =>
-        val angle = Flame.windEffectFlameAngle(attr.flameLengths(i), stratumWindSpeed, site.slope)
-        Flame(attr.flameLengths(i), angle, attr.origins(i), attr.flameDepths(i), attr.temperatures(i))
+        val angle = Flame.windEffectFlameAngle(attr.flameParams(i).length, stratumWindSpeed, site.slope)
+        Flame(attr.flameParams(i), angle)
       }
 
       flames

@@ -10,12 +10,11 @@ class StratumOutcome private (
     val stratumFlameSeries: Option[StratumFlameSeries]) {
   
   
-  val largestFlameSeries: Option[StratumFlameSeries] = plantFlameSeries match {
+  def selectFlameSeries(f: (StratumFlameSeries, StratumFlameSeries) => StratumFlameSeries) = plantFlameSeries match {
     case Some(plantFS) =>
       stratumFlameSeries match {
         case Some(stratumFS) =>
-          if (plantFS.maxFlameLength > stratumFS.maxFlameLength) Some( plantFS )
-          else Some( stratumFS )
+          Some( f(plantFS, stratumFS) )
           
         case None => 
           Some( plantFS )
@@ -23,7 +22,7 @@ class StratumOutcome private (
       
     // no plant or stratum flames
     case None => None
-  }   
+  }
       
 }
 
