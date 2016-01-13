@@ -34,10 +34,10 @@ class Line private(c: Coord, theta: Double) {
   }
   
   /** True if this line is vertical or almost so.  */
-  val isVertical = Numerics.almostEq(anchor.x, secondCoord.x)
+  val isVertical = Numerics.Distance.almostEq(anchor.x, secondCoord.x)
   
   /** True if this line is horizontal or almost so.  */
-  val isHorizontal = Numerics.almostEq(anchor.y, secondCoord.y)
+  val isHorizontal = Numerics.Distance.almostEq(anchor.y, secondCoord.y)
   
   
   /**
@@ -92,7 +92,7 @@ class Line private(c: Coord, theta: Double) {
         // the ray rather than just in line with it
         val theta = ray.origin.angleTo(coord)
         val diff = Angles.diff(theta, ray.angle)
-        if ( Numerics.almostZero(diff)) Some(coord)
+        if ( Numerics.Distance.almostZero(diff)) Some(coord)
         else None
         
       case None => None
@@ -104,9 +104,9 @@ class Line private(c: Coord, theta: Double) {
    */
   def intersects(c: Coord): Boolean =
     if (anchor.almostEq(c)) true
-    else if (isVertical) Numerics.almostEq(c.x, anchor.x)
-    else if (isHorizontal) Numerics.almostEq(c.y, anchor.y)  
-    else Numerics.almostZero( distanceTo(c) )
+    else if (isVertical) Numerics.Distance.almostEq(c.x, anchor.x)
+    else if (isHorizontal) Numerics.Distance.almostEq(c.y, anchor.y)  
+    else Numerics.Distance.almostZero( distanceTo(c) )
   
   def distanceTo(c: Coord): Double =
     CGAlgorithms.distancePointLinePerpendicular(c, anchor, secondCoord)

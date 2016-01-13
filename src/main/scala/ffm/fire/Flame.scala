@@ -8,13 +8,14 @@ import ffm.numerics.Numerics
 import ffm.numerics.Numerics._
 
 
-class Flame(val flameLength: Double, val angle: Double, val origin: Coord, val depthIgnited: Double, val deltaTemperature: Double) {
+class Flame private (val flameLength: Double, val angle: Double, val origin: Coord, val depthIgnited: Double, val deltaTemperature: Double) {
 
   // Unlike the original C++ code we don't allow null flames
   require( flameLength > 0, "flame length must be greater than 0")
   require( depthIgnited >= 0, "depth Ignited must be 0 or greater")
+  
   require( flameLength > depthIgnited, "flame length must be greater than depth ignited")
-
+  
   val tip = origin.toBearing(angle, flameLength)
 
   val plume = Ray(origin, angle)
@@ -65,18 +66,18 @@ class Flame(val flameLength: Double, val angle: Double, val origin: Coord, val d
    * Returns None if the target temperature is higher than the flame temperature.
    */
   def distanceForTemperature(targetTemp: Double, ambientTemp: Double): Option[Double] = {
-    if (Numerics.gt(targetTemp, deltaTemperature + ambientTemp))
+    if (Numerics.Default.gt(targetTemp, deltaTemperature + ambientTemp))
       None
     else
       Some(
-        if (targetTemp.almostEq(deltaTemperature + ambientTemp))
+        if (Numerics.Default.almostEq(targetTemp, deltaTemperature + ambientTemp))
           depthIgnited
         else {
           val deltaT = targetTemp - ambientTemp
           val dlen = flameLength - depthIgnited
           val a = -1.0 / (2 * flameLength * dlen)
 
-          if (Numerics.gt(deltaT, deltaTemperature * math.exp(a * dlen * dlen)))
+          if (Numerics.Default.gt(deltaT, deltaTemperature * math.exp(a * dlen * dlen)))
             math.sqrt(math.log(deltaT / deltaTemperature) / a) + depthIgnited
           else
             deltaTemperature * flameLength / deltaT * math.exp(a * dlen * dlen)
@@ -109,9 +110,9 @@ object Flame {
    * Calculates flame angle.
    */
   def flameAngle(flameLength: Double, windSpeed: Double, slope: Double, fireLineLength: Double): Double = {
-    if (Numerics.almostZero(flameLength))
+    if (Numerics.Distance.almostZero(flameLength))
       0.0   
-    else if (Numerics.almostZero(slope))
+    else if (Numerics.Default.almostZero(slope))
       windEffectFlameAngle(flameLength, windSpeed, slope)
     else {
       if (slope > 0) {
@@ -146,8 +147,8 @@ object Flame {
    * Calculates flame angle from wind speed and slope.
    */
   def windEffectFlameAngle(flameLength: Double, windSpeed: Double, slope: Double): Double = {
-    if (Numerics.almostZero(flameLength)) 0.0
-    else if (Numerics.almostZero(windSpeed)) math.Pi / 2
+    if (Numerics.Distance.almostZero(flameLength)) 0.0
+    else if (Numerics.Default.almostZero(windSpeed)) math.Pi / 2
     else {
       val effect =
         if (windSpeed > 0)
@@ -165,7 +166,7 @@ object Flame {
    *  Calculates flame angle given slope and fire line length (no wind effect).
    */
   def slopeEffectFlameAngle(flameLength: Double, slope: Double, fireLineLength: Double): Double = {
-    if (Numerics.almostZero(flameLength)) 0.0
+    if (Numerics.Distance.almostZero(flameLength)) 0.0
     else {
       val effSlope = if (flameLength < fireLineLength) slope else effectiveSlope(slope)
 

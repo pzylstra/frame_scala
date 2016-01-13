@@ -55,7 +55,7 @@ case class Coord(val x: Double, val y: Double) {
    * A short-cut for closeTo(other)(XYTolerance.Tiny)
    */
   def almostEq(other: Coord): Boolean =
-    closeTo(other)(XYTolerance.Tiny)
+    closeTo(other)(XYTolerance.Default)
     
   /**
    * Tests if this Coord is at a different position to another.

@@ -1,8 +1,8 @@
 package ffm.geometry
 
-import com.vividsolutions.jts.{ geom => JTS }
 import JTSImplicits._
 import ffm.numerics.Numerics
+import com.vividsolutions.jts.{ geom => JTS }
 import com.vividsolutions.jts.geom.TopologyException
   
 
@@ -30,10 +30,10 @@ class CrownPoly private (jtsPoly: JTS.Polygon) {
   val area: Double = jtsPoly.getArea
   
   val lowerLeft: Coord =
-    vertices.filter(c => Numerics.almostEq(c.x, left)).sortBy(_.y).head
+    vertices.filter(c => Numerics.Distance.almostEq(c.x, left)).sortBy(_.y).head
   
   val lowerRight: Coord =
-    vertices.filter(c => Numerics.almostEq(c.x, right)).sortBy(_.y).head
+    vertices.filter(c => Numerics.Distance.almostEq(c.x, right)).sortBy(_.y).head
 
   /**
    * Volume of revolution (assumes bilateral symmetry of polygon).
@@ -42,7 +42,7 @@ class CrownPoly private (jtsPoly: JTS.Polygon) {
     val midx = centroid.x
     var sum = 0.0
     for (Segment(c0, c1) <- segments) {
-      if (Numerics.geq(c0.x, midx) && Numerics.geq(c1.x, midx)) {
+      if (Numerics.Distance.geq(c0.x, midx) && Numerics.Distance.geq(c1.x, midx)) {
         val r1 = c0.x - midx
         val r2 = c1.x - midx
         sum += (r1 * r1 + r1 * r2 + r2 * r2) * (c0.y - c1.y)
@@ -74,12 +74,13 @@ class CrownPoly private (jtsPoly: JTS.Polygon) {
 
     val coords = Array(ray.origin, outsideCoord)
 
-    val jtsLine = JTSGeometryFactory().createLineString(coords)
+    val jtsLine = JTSGeometryFactory.createLineString(coords)
 
     try {
       val res: JTS.Geometry = jtsPoly.intersection(jtsLine)
 
       if (res.isEmpty()) None
+      else if (Numerics.Distance.almostZero( res.getLength )) None
       else Some({
         val jtsCoords = res.getCoordinates()
         Segment(jtsCoords.head, jtsCoords.last)
@@ -99,10 +100,8 @@ class CrownPoly private (jtsPoly: JTS.Polygon) {
    * If x is beyond the edges of the polygon it is clamped to the nearest edge.
    */
   def pointInBase(x: Double): Coord = {
-    import Numerics._
-
-    if (leq(x, left)) lowerLeft
-    else if (geq(x, right)) lowerRight
+    if (Numerics.Distance.leq(x, left)) lowerLeft
+    else if (Numerics.Distance.geq(x, right)) lowerRight
     else {
       val verticalRay = Ray(Coord(x, bottom - 1.0), angle = math.Pi / 2)
    
@@ -117,7 +116,7 @@ class CrownPoly private (jtsPoly: JTS.Polygon) {
    * Tests if a coordinate lies within the polygon.
    */
   def contains(c: Coord): Boolean = {
-    val p = JTSGeometryFactory().createPoint(c)
+    val p = JTSGeometryFactory.createPoint(c)
     jtsPoly.contains(p)
   }
 
@@ -138,7 +137,7 @@ object CrownPoly {
 
     // create Coords (implicitly JTS Coordinates) and build the polygon
     val coords = for ((x, y) <- xys) yield Coord(x, y)
-    val poly = JTSGeometryFactory().createPolygon(coords)
+    val poly = JTSGeometryFactory.createPolygon(coords)
 
     // ensure the polygon is in normal form, then return it
     poly.normalize()
@@ -157,7 +156,7 @@ object CrownPoly {
       if (coords.head.almostEq(coords.last)) coords
       else coords :+ coords.head
       
-    val poly = JTSGeometryFactory().createPolygon(closedCoords.toArray)
+    val poly = JTSGeometryFactory.createPolygon(closedCoords)
     if (!poly.isValid) throw new Error("Invalid crown polygon from coords: " + coords.mkString(", "))
     
     poly.normalize()

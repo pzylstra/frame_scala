@@ -140,5 +140,19 @@ object ModelSettings {
    * The width to use for the artificial crown polygon in stratum flame runs.
    */
   val StratumBigCrownWidth: Double = 10000.0
-
+  
+  
+  /////////////////////////////////////////////////////////////////////////////
+  // EXPERIMENTAL SETTINGS
+  /////////////////////////////////////////////////////////////////////////////
+  
+  /**
+   * Number of decimal places to use for precision-sensitive calculations
+   * involving distances and positions.
+   * 
+   * Example: this is used to limit the precision of species crown polygon
+   * vertices and intersection with flame plumes. Distances are represented
+   * in metres, so DistancePrecision of 4 equates to 0.1 mm precision.
+   */
+  val DistancePrecision: Integer = 4
 }

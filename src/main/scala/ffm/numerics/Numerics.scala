@@ -2,6 +2,8 @@ package ffm.numerics
 
 import scala.language.implicitConversions 
 
+import ffm.ModelSettings
+
 /**
  * Provides methods for comparison of Double values within a specified 
  * tolerance.
@@ -33,60 +35,49 @@ import scala.language.implicitConversions
  * almostZero(0.05)  // true
  * }}}
  */
+trait Numerics {
+  def almostEq(a: Double, b: Double): Boolean
+  def gt(a: Double, b: Double): Boolean
+  def lt(a: Double, b: Double): Boolean
+  def leq(a: Double, b: Double): Boolean
+  def geq(a: Double, b: Double): Boolean
+  def almostZero(a: Double): Boolean
+  def clampToZero(a: Double): Double
+}
+
 object Numerics {
   
-  /**
-   * Used to specify the comparison tolerance used by 
-   * [Numerics.almostEq]
-   */
-  case class DoubleTolerance(value: Double) {
-    require(value > 0.0, "tolerance value must be > 0.0")
+  val DefaultTolerance = 1.0e-8
+  val DistanceTolerance = math.pow(10, -ModelSettings.DistancePrecision)
+  
+  val Default: Numerics = new NumericsImpl(DefaultTolerance)
+  val Distance: Numerics = new NumericsImpl(DistanceTolerance)
+  
+  def apply(tolerance: Double = DefaultTolerance): Numerics =
+    new NumericsImpl(tolerance)
+
+  private class NumericsImpl(tolerance: Double) extends Numerics {
+
+    def almostEq(a: Double, b: Double): Boolean =
+      math.abs(a - b) <= tolerance
+
+    def gt(a: Double, b: Double): Boolean =
+      !leq(a, b)
+
+    def lt(a: Double, b: Double): Boolean =
+      !geq(a, b)
+
+    def leq(a: Double, b: Double): Boolean =
+      almostEq(a, b) || a < b
+
+    def geq(a: Double, b: Double): Boolean =
+      almostEq(a, b) || a > b
+
+    def almostZero(a: Double): Boolean =
+      almostEq(a, 0.0)
+
+    def clampToZero(a: Double): Double =
+      if (almostZero(a)) 0.0 else a
   }
-
-  /**
-   * Default comparison tolerance (1.0e-8).
-   */
-  implicit val DefaultTol = DoubleTolerance(1.0e-8)
-  
-  def almostEq(a: Double, b: Double)(implicit tolerance: DoubleTolerance) =
-    math.abs(a - b) <= tolerance.value
-
-  def gt(a: Double, b: Double) =
-    !leq(a, b)
-    
-  def lt(a: Double, b: Double) =
-    !geq(a, b)
-    
-  def leq(a: Double, b: Double) =
-    almostEq(a, b) || a < b
-    
-  def geq(a: Double, b: Double) =
-    almostEq(a, b) || a > b
-    
-  def almostZero(a: Double) =
-    almostEq(a, 0.0)
-    
-  def clampToZero(a: Double) =
-    if (almostZero(a)) 0.0 else a
-    
-  /**
-   * Provides an implicit conversion from Double to Numerics.DoubleEx
-   * which adds `almostEq` and `almostZero` methods.
-   * 
-   * Example:
-   * {{{
-   * import ffm.numerics.Numerics._
-   * 
-   * val d1 = 1.0
-   * val d2 = d1 + 1e-10
-   * 
-   * d1 == d2         // false
-   * d1.almostEq(d2)  // true
-   * }}}
-   */
-  implicit class DoubleEx(d: Double) {
-  
-      def almostEq(that: Double) = Numerics.almostEq(d, that)
-      def almostZero = Numerics.almostZero(d)
-  }  
+      
 }

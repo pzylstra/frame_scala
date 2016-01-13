@@ -1,6 +1,6 @@
 package ffm.forest
 
-import ffm.numerics.RoundedDoubleSortedSet
+import ffm.numerics.{Numerics, RoundedDoubleSortedSet}
 
 /**
  * Represents a stand of vegetation, consisting of strata and
@@ -41,7 +41,7 @@ class Vegetation(val strata: IndexedSeq[Stratum], overlaps: IndexedSeq[StratumOv
        * Get the average lower and upper height of each stratum and 
        * combine them into a list of unique heights in descending order
        */
-      val set = RoundedDoubleSortedSet()
+      val set = RoundedDoubleSortedSet(Numerics.DistanceTolerance)
       for (stratum <- strata if includeCanopy || stratum.level != StratumLevel.Canopy) {
         set.add(stratum.averageBottom)
         set.add(stratum.averageTop)

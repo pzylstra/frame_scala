@@ -8,10 +8,8 @@ import scala.collection.mutable.SortedSet
  * based on the [Numerics.almostEq] method to clamp closely spaced values.
  * 
  * {{{
- * import ffm.numerics._
- * implicit val MyTol = Numerics.DoubleTolerance(0.01)
- * 
- * val set = RoundedDoubleSortedSet()
+ * val tolerance = 0.01
+ * val set = RoundedDoubleSortedSet(tolerance)
  * set += 1.0
  * set += 0.995
  * set += 1.005
@@ -19,13 +17,16 @@ import scala.collection.mutable.SortedSet
  * println(set)  // prints Set(1.0, 2.0)
  * }}}
  */
-final class RoundedDoubleSortedSet()(implicit val tol: Numerics.DoubleTolerance) extends SortedSet[Double] {
+final class RoundedDoubleSortedSet(val tolerance: Double) extends SortedSet[Double] {
+  
+  private val Num = Numerics(tolerance)
+  
   /**
    * An ordering for Double values which makes use of [Numerics.almostEq].
    */
   override val ordering: Ordering[Double] = new Ordering[Double] {
     def compare(a: Double, b: Double): Int =
-      if (Numerics.almostEq(a, b)) 0
+      if (Num.almostEq(a, b)) 0
       else a.compare(b)
   }
   
@@ -40,6 +41,6 @@ final class RoundedDoubleSortedSet()(implicit val tol: Numerics.DoubleTolerance)
 }
 
 object RoundedDoubleSortedSet {
-  def apply()(implicit tol: Numerics.DoubleTolerance): RoundedDoubleSortedSet =
-    new RoundedDoubleSortedSet()(tol)
+  def apply(tolerance: Double): RoundedDoubleSortedSet =
+    new RoundedDoubleSortedSet(tolerance)
 }

@@ -98,7 +98,7 @@ class SpikeIgnitionPathModel extends IgnitionPathModel {
 
           //if there is any more of the plant to burn then compute ignition for the next time step
           var ePt = iPt
-          if (Numerics.gt(maxIncidentPath, 0.0) || Numerics.gt(maxPlantPath, 0.0)) {
+          if (Numerics.Distance.gt(maxIncidentPath, 0.0) || Numerics.Distance.gt(maxPlantPath, 0.0)) {
             //the direction and max possible extent of the next ignition segment is determined by 
             //whichever path has the greatest length
             val (pathLength, pathAngle) =
@@ -234,7 +234,9 @@ class SpikeIgnitionPathModel extends IgnitionPathModel {
                 else pathBuilder.segments(n - flameDuration).end
               }
 
-              if (!Numerics.almostZero(maxIncidentPath) || !Numerics.almostZero(maxPlantPath) || segStart.distinctFrom(ePt)) {
+              if (!Numerics.Distance.almostZero(maxIncidentPath) || 
+                  !Numerics.Distance.almostZero(maxPlantPath) || 
+                  segStart.distinctFrom(ePt)) {
                 pathBuilder.addSegment(timeStep, segStart, ePt)
                 plantFlames += newPlantFlame(pathBuilder.last, modifiedWindSpeed)
 

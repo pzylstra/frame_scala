@@ -1,6 +1,6 @@
 package ffm.geometry
 
-import ffm.numerics.Numerics._
+import ffm.numerics.Numerics
 
 /**
  * Provides methods to work with angular values.
@@ -30,7 +30,7 @@ object Angles {
    * is almost zero.
    */
   def almostEq(theta1: Double, theta2: Double): Boolean =
-    diff(theta1, theta2).almostZero
+    Numerics.Default.almostZero( diff(theta1, theta2) )
   
   /**
    * Normalizes an angle to lie in the interval (-Pi, Pi]

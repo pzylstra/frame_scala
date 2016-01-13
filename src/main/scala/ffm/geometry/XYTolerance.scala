@@ -1,5 +1,7 @@
 package ffm.geometry
 
+import ffm.numerics.Numerics
+
 /**
  * Stores tolerance values in the X and Y direction.
  * 
@@ -20,6 +22,8 @@ object XYTolerance {
   def apply(tol: Double): XYTolerance =
     XYTolerance(tol, tol)
   
-  /** Uniform tiny X and Y tolerance == 1.0e-8. */
-  val Tiny = XYTolerance(1.0e-8)
+  /** Default tolerance with value [Numerics.DistanceTolerance] for both 
+   *  X and Y directions. 
+   */
+  val Default = XYTolerance(Numerics.DistanceTolerance)
 }

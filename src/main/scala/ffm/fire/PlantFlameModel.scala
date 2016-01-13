@@ -83,7 +83,7 @@ object DefaultPlantFlameModel extends PlantFlameModel {
    * merging of plant flames.
    */
   def flameLength(species: Species, lengthIgnitedSeg: Double): Double = {
-    if (Numerics.almostZero(lengthIgnitedSeg)) 0.0
+    if (Numerics.Distance.almostZero(lengthIgnitedSeg)) 0.0
     else {
       val numLeaves = species.leavesPerClump * lengthIgnitedSeg / (species.clumpDiameter + species.clumpSeparation)
       val term1 = math.pow(leafFlameLength(species) * math.pow(numLeaves, 0.4) + lengthIgnitedSeg, 4.0)

@@ -43,7 +43,7 @@ class IgnitionPathSpec extends IgnitionPathTestBase with PropertyChecks {
       // Work out the earliest time of the max length
       val maxDist = lengths.max
       val expectedTime = {
-        val longestOnes = lengths.zipWithIndex filter { case(d, i) => Numerics.almostEq(d, maxDist) }
+        val longestOnes = lengths.zipWithIndex filter { case(d, i) => Numerics.Distance.almostEq(d, maxDist) }
         longestOnes.head._2 + startTime
       }
       
@@ -62,7 +62,7 @@ class IgnitionPathSpec extends IgnitionPathTestBase with PropertyChecks {
       // Work out the earliest time of the max length
       val maxDist = lengths.max
       val expectedTime = {
-        val longestOnes = lengths.zipWithIndex filter { case(d, i) => Numerics.almostEq(d, maxDist) }
+        val longestOnes = lengths.zipWithIndex filter { case(d, i) => Numerics.Distance.almostEq(d, maxDist) }
         longestOnes.head._2
       }
       
@@ -88,8 +88,8 @@ class IgnitionPathSpec extends IgnitionPathTestBase with PropertyChecks {
       
       val expectedLengthsAndTimes = allWithTime.sortWith { case ((la, ta), (lb, tb)) => 
         // a is longer than b, or they are same length and a is earlier than b
-        Numerics.gt(la, lb) || 
-        (Numerics.almostEq(la, lb) && ta < tb)
+        Numerics.Distance.gt(la, lb) || 
+        (Numerics.Distance.almostEq(la, lb) && ta < tb)
       }
       
       // create ignition path based on distances
@@ -118,7 +118,7 @@ class IgnitionPathSpec extends IgnitionPathTestBase with PropertyChecks {
     val eps = 0.0001
     val dx = (ModelSettings.MinRateForStratumSpread - eps) * ModelSettings.ComputationTimeInterval 
     
-    forAll (distanceLists(minDist=0.0, maxDist=dx)) { distances => 
+    forAll (distanceLists(minDist = 2 * Numerics.DistanceTolerance, maxDist = dx)) { distances => 
       val segmentParams = makeSegmentParams(distances)
       val path = makePath( segmentParams: _* )
       path.basicROS should be (0.0)

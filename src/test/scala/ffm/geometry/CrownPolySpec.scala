@@ -140,7 +140,7 @@ class CrownPolySpec extends FlatSpec with Matchers {
         expectedOp = Some( Segment(c, Coord(poly.right, c.y)) ) )
   }
   
-  it should "return a degenerate LineSegment when intersected with a Ray touching at a vertex" in {
+  it should "return None when intersected with a Ray touching at a vertex" in {
     // rectangular poly
     val top = 2.0
     val width = 1.0
@@ -152,7 +152,7 @@ class CrownPolySpec extends FlatSpec with Matchers {
     
     testIntersectionResult(
         resultOp = poly.intersection(ray),
-        expectedOp = Some( Segment(topRight, topRight) )
+        expectedOp = None
     )
   }
   

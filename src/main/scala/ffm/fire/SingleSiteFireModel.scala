@@ -334,10 +334,10 @@ class SingleSiteFireModel(pathModel: IgnitionPathModel, plantFlameModel: PlantFl
   private def selectBestPath(a: IgnitionPath, b: IgnitionPath): IgnitionPath = {
     if (a.hasIgnition) {
       if (b.hasIgnition)
-        if (Numerics.gt(b.maxSegmentLength, a.maxSegmentLength)) b else a
+        if (Numerics.Distance.gt(b.maxSegmentLength, a.maxSegmentLength)) b else a
       else a
     } else if (b.hasIgnition) b
-    else if (Numerics.gt(b.maxDryingTemperature, a.maxDryingTemperature)) b else a
+    else if (Numerics.Default.gt(b.maxDryingTemperature, a.maxDryingTemperature)) b else a
   }
 
   /**

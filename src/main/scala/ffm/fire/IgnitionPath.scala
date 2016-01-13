@@ -61,10 +61,10 @@ trait IgnitionPath extends IgnitionPathBase {
    */
   lazy val segmentsByLengthAndTime: IndexedSeq[IgnitedSegment] =
     segments.sortWith { (s1, s2) =>  
-      if (Numerics.almostEq(s1.length, s2.length)) {
+      if (Numerics.Distance.almostEq(s1.length, s2.length)) {
         s1.timeStep > s2.timeStep
       } else { 
-        Numerics.lt(s1.length, s2.length)
+        Numerics.Distance.lt(s1.length, s2.length)
       }
     }.reverse
     

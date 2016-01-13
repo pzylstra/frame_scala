@@ -1,11 +1,12 @@
 package ffm.fire
 
 import ffm.geometry.Coord
+import ffm.numerics.Numerics
 
 /** An ignited canopy segment for a given time step. */
 case class IgnitedSegment(timeStep: Int, start: Coord, end: Coord) {
   val length = start.distanceTo(end)
-  require (length > 0.0, "Ignited segment length must be greater than 0")
+  require (Numerics.Distance.gt(length, 0.0), "Ignited segment length must be greater than 0")
 
   /**
    * Override equals so that the start and end coordinates are compared
