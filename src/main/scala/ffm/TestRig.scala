@@ -183,10 +183,10 @@ object ResultFormatter {
     }
 
     if (path.hasIgnition) {
-      add("\nStartX\tStartY\tEndX\tEndY\tSegLen")
+      add("\nTime\tStartX\tStartY\tEndX\tEndY\tSegLen")
 
       path.segments foreach { seg =>
-        add(f"${seg.start.x}%.2f\t${seg.start.y}%.2f\t${seg.end.x}%.2f\t${seg.end.y}%.2f\t${seg.length}%.2f")
+        add(f"${seg.timeStep}\t${seg.start.x}%.2f\t${seg.start.y}%.2f\t${seg.end.x}%.2f\t${seg.end.y}%.2f\t${seg.length}%.2f")
       }
     }
 

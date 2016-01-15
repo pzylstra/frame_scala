@@ -6,6 +6,7 @@ import org.scalacheck.Gen
 import org.scalacheck.Arbitrary._
 
 import ffm.BasicSpec
+import ffm.numerics.Numerics
 
 /*
  * Tests for the Coord class. These use property-based (ScalaCheck) testing to
@@ -20,8 +21,8 @@ class CoordSpec extends BasicSpec with PropertyChecks {
   /*
    * Generators for ordinate values, Coords, angles etc.
    */
-  val XLim = 1.0e8
-  val YLim = 1.0e8
+  val XLim = 1.0e6
+  val YLim = 1.0e6
   
   val validXY: Gen[(Double, Double)] =
     for {
@@ -67,16 +68,25 @@ class CoordSpec extends BasicSpec with PropertyChecks {
     }
   }
   
-  it should "correctly report closeTo another Coord" in {
-    val threshold = 0.5
-    implicit val xytol = XYTolerance(threshold)
-    
-    forAll (coords, angles, Gen.choose(0.0, 1.0)) { (c0, angle, dx) =>
-      val c1 = c0.toBearing(angle, dx)
-      
-      val expected = (c1.x - c0.x).abs < threshold && (c1.y - c0.y).abs < threshold
-      
-      c0.closeTo(c1) should be (expected)
+  it should "correctly report almostEq" in {
+    forAll (coords, angles, Gen.choose(0.0, 2 * Numerics.DistanceTolerance)) { (c, angle, d) => 
+      val c2 = c.toBearing(angle, d)
+      val expected = Numerics.Distance.almostZero(d)
+      c.almostEq(c2) should be (expected)
+    }
+  }
+  
+  it should "never be distinctFrom itself" in {
+    forAll (coords) { (c) => 
+      c.distinctFrom(c) should be (false)
+    }
+  }
+  
+  it should  "correctly report distinctFrom" in {
+    forAll (coords, angles, Gen.choose(0.0, 2 * Numerics.DistanceTolerance)) { (c, angle, d) => 
+      val c2 = c.toBearing(angle, d)
+      val expected = Numerics.Distance.gt(d, 0.0)
+      c.distinctFrom(c2) should be (expected)
     }
   }
   

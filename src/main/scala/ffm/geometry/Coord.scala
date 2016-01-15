@@ -1,5 +1,6 @@
 package ffm.geometry
 
+import ffm.numerics.Numerics
 import com.vividsolutions.jts.geom.{Coordinate => JTSCoordinate}
 
 /**
@@ -43,24 +44,17 @@ case class Coord(val x: Double, val y: Double) {
     (other.x - x, other.y - y)
     
   /**
-   * Tests if this Coord is close to another by comparing X and Y ordinates
-   * separately against a thresholds defined by the implicit tol XYTolerance argument.
-   */
-  def closeTo(other: Coord)(implicit tol: XYTolerance): Boolean =
-    (x - other.x).abs <= tol.xtol && (y - other.y).abs <= tol.ytol 
-
-  /**
    * Tests if this Coord is at the same position as another, or almost so.
    * 
-   * A short-cut for closeTo(other)(XYTolerance.Tiny)
+   * A short-cut for distanceTo(other) < Numerics.DistanceTolerance
    */
   def almostEq(other: Coord): Boolean =
-    closeTo(other)(XYTolerance.Default)
+    distanceTo(other) < Numerics.DistanceTolerance
     
   /**
    * Tests if this Coord is at a different position to another.
    * 
-   * Syntactic sugar for !closeTo(other)
+   * Syntactic sugar for !almostEq(other)
    */
   def distinctFrom(other: Coord): Boolean =
     !almostEq(other)
