@@ -30,10 +30,11 @@ trait IgnitionPathBase {
   def hasIgnition: Boolean =
     !segments.isEmpty
 
-  /**
+  /** 
    * Returns the time step at which ignition occurred.
    * 
-   * @throws NoSuchElementException if there was no ignition.
+   *
+   * Throws an exception if ignition did not occur.  
    */
   def ignitionTimeStep: Int =
     if (segments.isEmpty) throw new NoSuchElementException("No ignited segments: ignition time undefined")

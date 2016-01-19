@@ -34,15 +34,15 @@ trait IgnitionPathBuilder extends IgnitionPathBase {
   /** The number of segments added so far. */
   def numSegments: Int
 
-  /**
-   * The first segment.
-   *  @throws NoSuchElementException if no segments have been added.
-   */
+  /** The first segment. 
+    *
+    * Throws an exception if no segments have been added.  
+    */
   def head: IgnitedSegment
 
-  /**
-   * The last segment.
-   *  @throws NoSuchElementException if no segments have been added.
+  /** The last segment. 
+   *  
+   * Throws an exception if no segments have been added.  
    */
   def last: IgnitedSegment
 

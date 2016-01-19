@@ -21,3 +21,7 @@ libraryDependencies ++= Seq(
 )
 
 
+// Tell sbteclipse plugin to generate download source artifacts and
+// create Eclipse source attachments for dependencies
+EclipseKeys.withSource := true
+

@@ -12,10 +12,10 @@ object ModelSettings {
    */
   val ExtinctionDFMC: Double = 0.2
 
-  /*
+  /**
    * The increase above ambient temperature for flames in grasses.
    * 
-   * See also [[ModelSettings.mainFlameDeltaTemperature]]
+   * See also [[MainFlameDeltaTemperature]]
    */
   val GrassFlameDeltaTemperature: Double = 750
 
@@ -25,10 +25,10 @@ object ModelSettings {
    */
   val GrassIDTReduction: Double = 0.75
 
-  /*
+  /**
    * The increase above ambient temperature for flames in species other than grasses.
    * 
-   * See also [[ModelSettings.grassFlameDeltaTemperature]]
+   * See also [[GrassFlameDeltaTemperature]]
    */
   val MainFlameDeltaTemperature: Double = 950
   
@@ -84,10 +84,11 @@ object ModelSettings {
   val MinHeightForWindModel: Double = 0.1
   
   /**
-   * The minimum rate of spread for a stratum fire to be classified as spreading.
+   * The minimum rate of spread for a stratum fire to be classified as 
+   * spreading (m/s).
    *
-   * A stratum fire must spread at at least this rate for 
-   * [[ModelSettings.MinTimeStepsForStratumSpread]] time steps to be classified as 
+   * A stratum fire must spread at this rate or faster for 
+   * [[MinTimeStepsForStratumSpread]] time steps to be classified as 
    * spreading through the stratum.
    */
   val MinRateForStratumSpread: Double = 2.7778e-3  // == 0.01 km/h
@@ -96,7 +97,7 @@ object ModelSettings {
    * Minimum temperature for canopy heating (degrees Celsius).
    *
    * If the canopy is not heated to this value by pre-heating flames then flame
-   * residence time is reduced to [[ModelSettings.ReducedCanopyFlameResidenceTime]].
+   * residence time is reduced to [[ReducedCanopyFlameResidenceTime]].
    */
   val MinTempForCanopyHeating: Double = 100
 
@@ -105,7 +106,7 @@ object ModelSettings {
    * classified as spreading through the stratum.
    *
    * A stratum fire must spread at at least this rate for 
-   * [[ModelSettings.MinTimeStepsForStratumSpread]] time steps to be classified as 
+   * [[MinTimeStepsForStratumSpread]] time steps to be classified as 
    * spreading through the stratum.
    */
   val MinTimeStepsForStratumSpread = 2
@@ -120,9 +121,9 @@ object ModelSettings {
   val NumPenetrationSteps: Int = 10
 
   /**
-   * Reduced canopy flame residence time (sec).
+   * Reduced canopy flame residence time (s).
    *
-   * If the canopy is not heated to [[ModelSettings.MinTempForCanopyHeating]] by pre-heating
+   * If the canopy is not heated to [[MinTempForCanopyHeating]] by pre-heating
    * flames then flame residence time is reduced.
    */
   val ReducedCanopyFlameResidenceTime: Double = 1
