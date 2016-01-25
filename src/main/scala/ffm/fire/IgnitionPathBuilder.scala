@@ -62,10 +62,10 @@ trait IgnitionPathBuilder extends IgnitionPathBase {
  * val pathBuilder = IgnitionPathBuilder(ignitionContext, speciesComponent, initialPoint)
  *
  * // During the simulation
- * resultBuilder.addSegment(timeStep, startPoint, endPoint)
+ * pathBuilder.addSegment(timeStep, startPoint, endPoint)
  *
  * // At the end of the simulation
- * resultBuilder.toIgnitionPath
+ * pathBuilder.toIgnitionPath
  * }}}
  */
 object IgnitionPathBuilder {
@@ -123,11 +123,11 @@ object IgnitionPathBuilder {
 
     def last = segmentBuffer.last
 
-    def toIgnitionPath = new BasicIgnitionPath(context, speciesComponent, initialPoint, preIgnitionData, segments)
+    def toIgnitionPath = new IgnitionPathImpl(context, speciesComponent, initialPoint, preIgnitionData, segments)
 
   }
 
-  private class BasicIgnitionPath(
+  private class IgnitionPathImpl(
     val context: IgnitionContext,
     val speciesComponent: SpeciesComponent,
     val initialPoint: Coord,
