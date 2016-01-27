@@ -27,6 +27,7 @@ trait Species {
   def clumpDiameter: Double
   def clumpSeparation: Double
 
+  def propSilicaFreeAsh: Option[Double]
   def ignitionTemperature: Double
   def ignitabilityCoef: Double
 }

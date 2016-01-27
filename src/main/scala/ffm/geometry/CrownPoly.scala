@@ -6,16 +6,44 @@ import com.vividsolutions.jts.{ geom => JTS }
 import com.vividsolutions.jts.geom.TopologyException
   
 
+/** 
+ * Holds input parameters for a hexagonal crown polygon. 
+ *  
+ * The parameters are used to form a hexagon with the following vertices
+ * arranged clockwise, from the lower centre vertex: (0, hc) -> (-w/2, he) -> 
+ * (-w/2, ht) -> (0, hp) -> (w/2, ht) -> (w/2, he)
+ *
+ * @param hc y ordinate of lower centre vertex
+ * @param he y ordinate of lower side vertices
+ * @param ht y ordinate of upper sider vertices
+ * @param hp y ordinate of upper centre vertex
+ * @param w crown width.
+ */
+case class CrownParams(hc: Double, he: Double, ht: Double, hp: Double, w: Double) {
+  require(hp > hc, s"Invalid dimensions: hp ($hp) should be greater than hc ($hc)")
+  require(ht >= he, s"Invalid dimensions: ht ($ht) should not be less than he ($he)")
+  require(w > 0.0, s"Invalid dimensions: width ($w) should be positive")  
+}
+
+
 /**
- * A polygon with six vertices representing a plant crown.
+ * A polygon representing a plant crown.
  *
  * Uses JTS classes for the geometry internals but all of the mutable
- * JTS stuff is hidden from the clients of this class.
+ * JTS objects are hidden from clients.
+ * 
+ * Create instances with the companion CrownPoly object.
  */
-class CrownPoly private (jtsPoly: JTS.Polygon) {
+class CrownPoly private (jtsPoly: JTS.Polygon, params: Option[CrownParams]) {
 
   // bounding rectangle of the crown aligned with coordinate axes
   private val env = jtsPoly.getEnvelopeInternal()
+  
+  /** The input parameters (hc, he, ht, hp, w) used to create this crown
+   *  polygon. These are optional, as a crown can also be created from
+   *  arbitrary vertices.
+   */
+  val inputParams: Option[CrownParams] = params;
 
   val width: Double = env.getWidth
   val height: Double = env.getHeight
@@ -123,17 +151,18 @@ class CrownPoly private (jtsPoly: JTS.Polygon) {
   override def toString = s"CrownPoly(width=$width)"
 }
 
+
 object CrownPoly {
   /**
    * Creates a new six-sided crown polygon from the given height and width parameters.
    */
   def apply(hc: Double, he: Double, ht: Double, hp: Double, w: Double): CrownPoly = {
-    require(hp > hc, s"Invalid dimensions: hp ($hp) should be greater than hc ($hc)")
-    require(ht >= he, s"Invalid dimensions: ht ($ht) should be greater than he ($he)")
-    require(w > 0.0, s"Invalid dimensions: width ($w) should be positive")
+    // Store parameters. This will also run validity checks on the values.
+    val params = CrownParams(hc, he, ht, hp, w)
 
     // set up x,y pairs for polygon coords
-    val xys = Array((0.0, hc), (w / 2, he), (w / 2, ht), (0.0, hp), (-w / 2, ht), (-w / 2, he), (0.0, hc))
+    val w2 = w / 2
+    val xys = Array((0.0, hc), (w2, he), (w2, ht), (0.0, hp), (-w2, ht), (-w2, he), (0.0, hc))
 
     // create Coords (implicitly JTS Coordinates) and build the polygon
     val coords = for ((x, y) <- xys) yield Coord(x, y)
@@ -142,7 +171,7 @@ object CrownPoly {
     // ensure the polygon is in normal form, then return it
     poly.normalize()
 
-    new CrownPoly(poly)
+    new CrownPoly(poly, Some(params))
   }
   
   /**
@@ -160,7 +189,7 @@ object CrownPoly {
     if (!poly.isValid) throw new Error("Invalid crown polygon from coords: " + coords.mkString(", "))
     
     poly.normalize()
-    new CrownPoly(poly)
+    new CrownPoly(poly, None)
     
   }
 }

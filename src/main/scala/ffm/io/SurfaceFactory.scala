@@ -3,7 +3,7 @@ package ffm.io
 import scala.util.Try
 
 import ffm.forest.Surface
-import ffm.util.Units.deg2rad
+import ffm.util.Units
 
 object SurfaceFactory {
 
@@ -27,10 +27,10 @@ object SurfaceFactory {
   private def buildSurface(vas: ValueAssignments): Surface = {
     Surface(
       // input slope is degrees
-      slope = deg2rad( vas.dval("slope") ),
+      slope = Units.convert("deg", "rad", vas.dval("slope") ),
       deadFuelMoistureProp = vas.dval("deadFuelMoistureProp"),
       // input fuel load is tonnes per hectare - convert to kg / sq m
-      fuelLoad = vas.dval("fuelLoad") / 10,  
+      fuelLoad = Units.convert("t/ha", "kg/m2", vas.dval("fuelLoad") ),  
       meanFuelDiameter = vas.dval("meanFuelDiameter"),
       meanFinenessLeaves = vas.dval("meanFinenessLeaves"))
   }

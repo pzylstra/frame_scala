@@ -2,8 +2,9 @@ package ffm.geometry
 
 import org.scalatest.FlatSpec
 import org.scalatest.Matchers
+import org.scalatest.OptionValues
 
-class CrownPolySpec extends FlatSpec with Matchers {
+class CrownPolySpec extends FlatSpec with Matchers with OptionValues {
   val Tol = 1.0e-8
 
   "Creating a crown poly" should "fail if hp is not greater than hc" in {
@@ -22,6 +23,27 @@ class CrownPolySpec extends FlatSpec with Matchers {
     intercept[IllegalArgumentException] {
       CrownPoly(hc=1.0, he=1.5, ht=2.5, hp=3.0, w=0.0)
     }
+  }
+  
+  "A CrownPoly created from standard parameters" should "return its parameters" in {
+    val w = 2.0
+    val hc = 1.0
+    val he = 1.5
+    val ht = 2.5
+    val hp = 3.0
+        
+    val poly = CrownPoly(hc=hc, he=he, ht=ht, hp=hp, w=w)
+    
+    val expected = CrownParams(hc, he, ht, hp, w)
+    
+    poly.inputParams should contain (expected)
+  }
+  
+  "A CrownPoly created from arbitrary vertices" should "return None for its parameters" in {
+    val xys = Vector( Coord(-10, 0), Coord(0, 100), Coord(10, 0) )
+    val poly = CrownPoly(xys)
+    
+    poly.inputParams should be (None)
   }
   
   "A valid CrownPoly" should "return the correct dimensions" in {

@@ -4,7 +4,7 @@ import scala.util.Try
 
 import ffm.forest.ConstantWeatherModel
 import ffm.forest.WeatherModel
-import ffm.util.Units._
+import ffm.util.Units
 
 object ConstantWeatherModelFactory {
 
@@ -21,7 +21,11 @@ object ConstantWeatherModelFactory {
       vas <- Try( new ValueAssignments(modelDef.params, items) )
       weatherModel <- Try( new ConstantWeatherModel(
           temperature=vas.dval("temperature"), 
-          windSpeed= kph2mps( vas.dval("windSpeed")) ) )
+          
+          windSpeed= {
+            val kph = vas.dval("windSpeed")
+            Units.convert("km/h", "m/s", kph)
+          }))
     } yield weatherModel
   }
     

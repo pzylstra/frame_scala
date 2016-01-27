@@ -29,7 +29,7 @@ object Options {
   }
   
   /**
-   * Tests whether at leat n arguments have values.
+   * Tests whether at least n arguments have values.
    */
   def atLeast(n: Int, ops: Option[Any]*): Boolean = {
     count(ops: _*) >= n
