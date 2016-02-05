@@ -1,8 +1,6 @@
 package ffm.forest
 
 import ffm.geometry.CrownPoly
-import ffm.fire.PlantFlameModel
-
 
 class Stratum private (
   val level: StratumLevel,

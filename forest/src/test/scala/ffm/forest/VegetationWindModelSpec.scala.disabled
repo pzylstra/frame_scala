@@ -9,6 +9,8 @@ import ffm.io.ParamFileParser
 import ffm.io.SingleSiteFactory
 import ffm.io.ValueAssignments
 
+// TODO: This test file has been disabled (changed extension) until we sort out the mutual dependency io and forest sub-projects
+
 class VegetationWindModelSpec extends MockSpec {
 
   "VegetationWindModel" should "calculate the correct wind reduction factor" in {
