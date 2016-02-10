@@ -6,7 +6,9 @@
 *.swp
 
 # sbt and Scala-IDE bits
-.cache
+**/.cache
+**/.cache-main
+**/.cache-tests
 .history/
 .lib/
 .project

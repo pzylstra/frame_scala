@@ -4,15 +4,20 @@ description := "Forest flammability model"
 
 scalaVersion in ThisBuild := "2.11.7"
 
+lazy val printClasspath = taskKey[Unit]("Print classpath")
+
 lazy val commonSettings = Seq(
   version := "0.1",
   organization := "cermb",
   libraryDependencies ++= Seq(
     "org.scala-lang" % "scala-reflect" % "2.11.7",
     "org.scalautils" %% "scalautils" % "2.1.5",
-    "com.vividsolutions" % "jts" % "1.13",
-    "org.apache.commons" % "commons-math3" % "3.3"
-  )
+    "com.vividsolutions" % "jts" % "1.13"
+  ),
+  printClasspath in ThisBuild := {
+    val els = (fullClasspath in Runtime).value.files map(_.getPath)
+    print(els.mkString(java.io.File.pathSeparator))
+  }
 )
 
 lazy val testSettings = Seq(
@@ -28,7 +33,12 @@ lazy val root = (project in file(".")).
 
 lazy val common = (project in file("common")).
   settings(commonSettings: _*).
-  settings(testSettings: _*)
+  settings(testSettings: _*).
+  settings(
+    libraryDependencies ++= Seq(
+      "org.apache.commons" % "commons-math3" % "3.3"
+    )
+  )
 
 lazy val fire = (project in file("fire")).
   dependsOn(common, forest).
@@ -62,4 +72,5 @@ lazy val spike = (project in file("spike")).
 // Tell sbteclipse plugin to download source artifacts and
 // create Eclipse source attachments for dependencies
 EclipseKeys.withSource := true
+
 
