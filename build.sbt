@@ -67,8 +67,9 @@ lazy val spike = (project in file("spike")).
     )
   )
 
-// Tell sbteclipse plugin to download source artifacts and
-// create Eclipse source attachments for dependencies
+// Tell sbteclipse plugin to:
+// - download source and create Eclipse attachments for dependencies
 EclipseKeys.withSource := true
-
+// - don't generate a project definition for the root project
+EclipseKeys.skipParents in ThisBuild := true
 
