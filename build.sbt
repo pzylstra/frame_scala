@@ -10,9 +10,6 @@ lazy val commonSettings = Seq(
   version := "0.1",
   organization := "cermb",
   libraryDependencies ++= Seq(
-    "org.scala-lang" % "scala-reflect" % "2.11.7",
-    "org.scalautils" %% "scalautils" % "2.1.5",
-    "com.vividsolutions" % "jts" % "1.13"
   ),
   printClasspath in ThisBuild := {
     val els = (fullClasspath in Runtime).value.files map(_.getPath)
@@ -36,6 +33,7 @@ lazy val common = (project in file("common")).
   settings(testSettings: _*).
   settings(
     libraryDependencies ++= Seq(
+      "com.vividsolutions" % "jts" % "1.13",
       "org.apache.commons" % "commons-math3" % "3.3"
     )
   )
