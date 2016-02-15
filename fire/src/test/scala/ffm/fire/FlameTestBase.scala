@@ -40,6 +40,5 @@ abstract class FlameTestBase extends BasicSpec with PropertyChecks with OptionVa
    * General tolerance for +- comparisons
    */
   val Tol = ffm.numerics.Numerics.DefaultTolerance
-
   
 }

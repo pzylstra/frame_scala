@@ -2,7 +2,6 @@ package ffm.fire
 
 import org.scalacheck.Gen
 import org.scalatest.prop.PropertyChecks
-
 import ffm.ModelSettings
 import ffm.numerics.Numerics
 import ffm.numerics.Stats
@@ -15,7 +14,7 @@ class IgnitionPathSpec extends IgnitionPathTestBase with PropertyChecks {
   "An IgnitionPath" should "return the correct initial point" in {
     
     forAll(smallCoords) { init => 
-      val b = IgnitionPathBuilder(context, spComp, init)
+      val b = IgnitionPathBuilder(stratumLevel, spComp, init)
       
       val ip = b.toIgnitionPath.initialPoint      
       ip.almostEq(init) should be (true)

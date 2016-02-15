@@ -9,6 +9,7 @@
 **/.cache
 **/.cache-main
 **/.cache-tests
+.settings/
 .history/
 .lib/
 .project

@@ -1,15 +1,15 @@
 package ffm.fire
 
 import scala.collection.mutable.ArrayBuffer
-
 import ffm.forest.SpeciesComponent
 import ffm.geometry.Coord
+import ffm.forest.StratumLevel
 
 /**
  * Used to progressively record results during an ignition path run and
  * then provide them as an immutable IgnitionPath object.
  */
-trait IgnitionPathBuilder extends IgnitionPathBase {
+trait IgnitionPathBuilder {
   /** Records pre-heating flame drying prior to ignition. */
   def recordPreHeatingFlameDrying(
     time: Int,
@@ -33,6 +33,19 @@ trait IgnitionPathBuilder extends IgnitionPathBase {
 
   /** The number of segments added so far. */
   def numSegments: Int
+  
+  /** Returns the segments added so far. */
+  def segments: IndexedSeq[IgnitedSegment]
+  
+  /** Checks if ignition has occurred. */
+  def hasIgnition: Boolean
+  
+  /** 
+   * Returns the time step at which ignition occurred.
+   * 
+   * This should only be called if `hasIgnition` returns `true`.
+   */
+  def ignitionTimeStep: Int
 
   /** The first segment. 
     *
@@ -59,7 +72,7 @@ trait IgnitionPathBuilder extends IgnitionPathBase {
  * Usage:
  * {{{
  * // At the beginning of an ignition path simulation
- * val pathBuilder = IgnitionPathBuilder(ignitionContext, speciesComponent, initialPoint)
+ * val pathBuilder = IgnitionPathBuilder(stratumLevel, speciesComponent, initialPoint)
  *
  * // During the simulation
  * pathBuilder.addSegment(timeStep, startPoint, endPoint)
@@ -69,10 +82,10 @@ trait IgnitionPathBuilder extends IgnitionPathBase {
  * }}}
  */
 object IgnitionPathBuilder {
-  def apply(context: IgnitionContext, speciesComponent: SpeciesComponent, initialPoint: Coord): IgnitionPathBuilder =
-    new Builder(context, speciesComponent, initialPoint)
+  def apply(level: StratumLevel, speciesComponent: SpeciesComponent, initialPoint: Coord): IgnitionPathBuilder =
+    new Builder(level, speciesComponent, initialPoint)
 
-  private class Builder(val context: IgnitionContext, val speciesComponent: SpeciesComponent, val initialPoint: Coord) extends IgnitionPathBuilder {
+  private class Builder(val level: StratumLevel, val speciesComponent: SpeciesComponent, val initialPoint: Coord) extends IgnitionPathBuilder {
     private val segmentBuffer = ArrayBuffer.empty[IgnitedSegment]
     private val preIgnitionBuffer = ArrayBuffer.empty[PreIgnitionData]
 
@@ -118,20 +131,20 @@ object IgnitionPathBuilder {
     }
 
     def numSegments = segmentBuffer.size
+    
+    def hasIgnition = numSegments > 0
+    
+    def ignitionTimeStep =
+      if (segments.isEmpty) throw new UnsupportedOperationException("No ignited segments: ignition time undefined")
+      else segments.head.timeStep
 
     def head = segmentBuffer.head
 
     def last = segmentBuffer.last
 
-    def toIgnitionPath = new IgnitionPathImpl(context, speciesComponent, initialPoint, preIgnitionData, segments)
+    def toIgnitionPath = new DefaultIgnitionPath(level, speciesComponent, initialPoint, preIgnitionData, segments)
 
   }
 
-  private class IgnitionPathImpl(
-    val context: IgnitionContext,
-    val speciesComponent: SpeciesComponent,
-    val initialPoint: Coord,
-    val preIgnitionData: IndexedSeq[PreIgnitionData],
-    val segments: IndexedSeq[IgnitedSegment]) extends IgnitionPath
 }
 

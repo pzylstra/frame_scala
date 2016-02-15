@@ -2,7 +2,6 @@ package ffm.fire
 
 import org.mockito.Mockito.when
 import org.scalacheck.Gen
-
 import ffm.MockSpec
 import ffm.forest.Site
 import ffm.forest.Species
@@ -11,7 +10,7 @@ import ffm.forest.StratumLevel
 import ffm.geometry.Coord
 
 /**
- * Base class for IgnitionPathSpec and IgitionPathBuilderSpec classes.
+ * Base class for DefaultIgnitionPathSpec and DefaultIgitionPathBuilderSpec classes.
  */
 abstract class IgnitionPathTestBase extends MockSpec {
 
@@ -19,22 +18,25 @@ val species = mock[Species]
   val spComp = SpeciesComponent(species, 1.0)
   val stratumLevel = StratumLevel.Canopy
   val site = mock[Site]
-  
+ 
+  /*
   val context = mock[IgnitionContext]
   when (context.site) thenReturn site
   when (context.stratumLevel) thenReturn stratumLevel
+  */
 
   // This extends the IgntionPathBuilder with a method to 
-  // add segments directly
+  // add segment objects directly, which is convenient for
+  // test comparisons.
   implicit class IgnitionPathBuilderEx(builder: IgnitionPathBuilder) {
     def addSegment(s: IgnitedSegment): Unit =
       builder.addSegment(s.timeStep, s.start, s.end)
   }
 
-  def newBuilder() = IgnitionPathBuilder(context, spComp, c0)
-  
-  val c0 = Coord.Origin 
+  val c0 = Coord.Origin
 
+  def newBuilder() = IgnitionPathBuilder(stratumLevel, spComp, c0)
+  
   /*
    * Creates a Coord with the given X value and Y=0
    */

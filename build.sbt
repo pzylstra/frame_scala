@@ -9,9 +9,7 @@ lazy val printClasspath = taskKey[Unit]("Print classpath")
 lazy val commonSettings = Seq(
   version := "0.1",
   organization := "cermb",
-  libraryDependencies ++= Seq(
-  ),
-  printClasspath in ThisBuild := {
+  printClasspath := {
     val els = (fullClasspath in Runtime).value.files map(_.getPath)
     print(els.mkString(java.io.File.pathSeparator))
   }
@@ -38,13 +36,13 @@ lazy val common = (project in file("common")).
     )
   )
 
-lazy val fire = (project in file("fire")).
-  dependsOn(common, forest).
+lazy val forest = (project in file("forest")).
+  dependsOn(common).
   settings(commonSettings: _*).
   settings(testSettings: _*)
 
-lazy val forest = (project in file("forest")).
-  dependsOn(common).
+lazy val fire = (project in file("fire")).
+  dependsOn(common, forest).
   settings(commonSettings: _*).
   settings(testSettings: _*)
 
