@@ -8,7 +8,7 @@ import ffm.forest.Stratum
 import ffm.forest.StratumLevel
 import ffm.forest.StratumOverlap
 import ffm.forest.StratumOverlapType
-import ffm.forest.Vegetation
+import ffm.forest.DefaultVegetation
 
 object SingleSiteFactory {
 
@@ -21,7 +21,7 @@ object SingleSiteFactory {
 
       strata <- buildStrata(modelDef, fallback)
       overlaps <- Try(loadOverlaps(modelDef))
-      veg <- Try(Vegetation(strata, overlaps))
+      veg <- Try(DefaultVegetation(strata, overlaps))
 
     } yield SingleSite(surface = surface, vegetation = veg, weather = weatherModel)
   }

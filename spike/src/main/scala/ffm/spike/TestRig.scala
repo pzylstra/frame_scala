@@ -5,6 +5,7 @@ import ffm.io._
 import ffm.fire._
 import ffm.util.FileUtils
 import ffm.forest.StratumLevel
+import ffm.forest.DefaultVegetationWindModel
 
 object BatchRunner {
   
@@ -65,13 +66,14 @@ object Runner {
     }
 
     // run the fire model
-    val pathModel = new SpikeIgnitionPathModel
+    val pathModel = new DefaultIgnitionPathModel
     val plantFlameModel = DefaultPlantFlameModel
+    val windModel = DefaultVegetationWindModel
 
     // TODO: read fire line length from parameters file (check with Phil if it ever changes)
     val fireLineLength = 100.0
     
-    val result = SingleSiteFireModelRunner.run(pathModel, plantFlameModel)(site, fireLineLength)    
+    val result = DefaultSingleSiteFireModelRunner.run(pathModel, plantFlameModel, windModel)(site, fireLineLength)    
 
     ResultFormatter.format(result)
   }
@@ -112,11 +114,13 @@ object ResultFormatter {
       add( f"  flame height:  ${res.flameHeight}%.2f" )
     }
     
-    add( formatRunResult(fmr.run1) )
+    val run1 = fmr.runResults(0)
+    add( formatRunResult(run1) )
     
-    if (fmr.hasSecondRun) {
+    if (fmr.runResults.size > 1) {
+      val run2 = fmr.runResults(1)
       add( "\n\n=== Second run ===\n\n" )
-      add( formatRunResult(fmr.run2) )
+      add( formatRunResult(run2) )
     }
     
     buf.toString
@@ -124,21 +128,22 @@ object ResultFormatter {
     
   def formatRunResult(runResult: FireModelRunResult): String = {
     val buf = new StringBuilder    
-    buf ++= formatSurfaceParams(runResult.surfaceParams) + '\n'
+    buf ++= formatSurfaceParams(runResult.surfaceOutcome) + '\n'
     
     runResult.stratumOutcomes foreach { outcome => buf ++= formatOutcome(outcome) + '\n' }
     
     buf.toString
   }
   
-  def formatSurfaceParams(sp: SurfaceParams): String = {
+  def formatSurfaceParams(surf: SurfaceOutcome): String = {
     val buf = new StringBuilder
     val add = adder(buf)
     
-    add( f"surface wind speed   ${sp.windSpeed}%.2f" )
-    add( f"surface flame length ${sp.flameLength}%.2f" )
-    add( f"surface flame angle  ${sp.flameAngle}%.2f" )
-    add( f"surface flame height ${sp.flameHeight}%.2f" )
+    add( f"surface wind speed   ${surf.windSpeed}%.2f" )
+    
+    add( f"surface flame length ${surf.flameSummary.flameLength}%.2f" )
+    add( f"surface flame angle  ${surf.flameSummary.flameAngle}%.2f" )
+    add( f"surface flame height ${surf.flameSummary.flameHeight}%.2f" )
 
     buf.toString
   }

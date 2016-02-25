@@ -72,7 +72,7 @@ trait IgnitionPathBuilder {
  * Usage:
  * {{{
  * // At the beginning of an ignition path simulation
- * val pathBuilder = IgnitionPathBuilder(stratumLevel, speciesComponent, initialPoint)
+ * val pathBuilder = IgnitionPathBuilder(ignitionContext, speciesComponent, initialPoint)
  *
  * // During the simulation
  * pathBuilder.addSegment(timeStep, startPoint, endPoint)
@@ -82,10 +82,10 @@ trait IgnitionPathBuilder {
  * }}}
  */
 object IgnitionPathBuilder {
-  def apply(level: StratumLevel, speciesComponent: SpeciesComponent, initialPoint: Coord): IgnitionPathBuilder =
-    new Builder(level, speciesComponent, initialPoint)
+  def apply(context: IgnitionContext, speciesComponent: SpeciesComponent, initialPoint: Coord): IgnitionPathBuilder =
+    new Builder(context, speciesComponent, initialPoint)
 
-  private class Builder(val level: StratumLevel, val speciesComponent: SpeciesComponent, val initialPoint: Coord) extends IgnitionPathBuilder {
+  private class Builder(val context: IgnitionContext, val speciesComponent: SpeciesComponent, val initialPoint: Coord) extends IgnitionPathBuilder {
     private val segmentBuffer = ArrayBuffer.empty[IgnitedSegment]
     private val preIgnitionBuffer = ArrayBuffer.empty[PreIgnitionData]
 
@@ -142,7 +142,7 @@ object IgnitionPathBuilder {
 
     def last = segmentBuffer.last
 
-    def toIgnitionPath = new DefaultIgnitionPath(level, speciesComponent, initialPoint, preIgnitionData, segments)
+    def toIgnitionPath = new DefaultIgnitionPath(context, speciesComponent, initialPoint, preIgnitionData, segments)
 
   }
 

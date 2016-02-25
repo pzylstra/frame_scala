@@ -1,9 +1,14 @@
 package ffm.fire
 
+import ffm.forest.Site
+import ffm.forest.StratumLevel
+import ffm.forest.Vegetation
+
 /**
  * Holds data for a single run of a [[FireModel]].
  */
 case class DefaultFireModelRunResult(
+    site: Site,
     surfaceOutcome: SurfaceOutcome,
     stratumOutcomes: IndexedSeq[StratumOutcome],
     combinedFlames: IndexedSeq[Flame]) extends FireModelRunResult {
@@ -17,20 +22,18 @@ case class DefaultFireModelRunResult(
  * Some ordering is enforced by the `add` methods: surface data must be
  * added first, then stratum outcomes (if any), then combined flames (if any).
  */
-class DefaultFireModelRunResultBuilder {
+class DefaultFireModelRunResultBuilder(site: Site) {
 
   private object EmptySurfaceOutcome extends SurfaceOutcome {
     val windSpeed = 0.0
     val flames = Vector.empty
+    val flameSummary = StratumFlameSummary(StratumLevel.Surface, 0.0, 0.0, 0.0)
   }
 
-  private val EmptyResult = DefaultFireModelRunResult(EmptySurfaceOutcome, Vector.empty, Vector.empty)
+  private val EmptyResult = DefaultFireModelRunResult(site, EmptySurfaceOutcome, Vector.empty, Vector.empty)
 
   private var result = EmptyResult
 
-  /**
-   * 
-   */
   def addSurfaceOutcome(surf: SurfaceOutcome): Unit = {
     require(result.surfaceOutcome == EmptySurfaceOutcome, 
         "Adding a surface outcome when prior data have been set")
@@ -48,7 +51,7 @@ class DefaultFireModelRunResultBuilder {
   def addCombinedFlames(flames: IndexedSeq[Flame]): Unit = {
     // If the set of flames is not empty, the existing result object should have
     // one or more stratum outcomes already.
-    require(flames.isEmpty || result.stratumOutcomes.isEmpty,
+    require(flames.isEmpty || !result.stratumOutcomes.isEmpty,
       "Adding combined flames to a result object with no stratum outcomes")
 
     result = result.copy(combinedFlames = flames)

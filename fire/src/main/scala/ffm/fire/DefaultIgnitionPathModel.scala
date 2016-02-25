@@ -40,7 +40,7 @@ import IgnitionRunType._
      * Runs the path simulation and returns an IgnitionResult.
      */
     def run(initialPoint: Coord): IgnitionPath = {
-      val pathBuilder = IgnitionPathBuilder(level, speciesComponent, initialPoint)
+      val pathBuilder = IgnitionPathBuilder(context, speciesComponent, initialPoint)
 
       //pop the last pre-heating flame off the vector of pre-heating flames because that level will
       //provide the direct heating

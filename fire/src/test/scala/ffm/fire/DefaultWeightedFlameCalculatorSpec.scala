@@ -99,8 +99,10 @@ class DefaultWeightedFlameCalculatorSpec extends MockSpec with PropertyChecks {
   }
 
   def createPath(spComp: SpeciesComponent, level: StratumLevel)(segs: IndexedSeq[IgnitedSegment]): IgnitionPath = {
+    val context = createContext(level)
+    
     new DefaultIgnitionPath(
-      stratumLevel = level,
+      context = context,
       speciesComponent = spComp,
       preIgnitionData = Vector.empty[PreIgnitionData],
       initialPoint = segs.head.start,

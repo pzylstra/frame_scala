@@ -10,7 +10,7 @@ import ffm.forest.StratumLevel
  * Implements [[IgnitionPath]] and provides an algorithm for basic rate of spread.
  */
 class DefaultIgnitionPath(
-    val stratumLevel: StratumLevel,
+    val context: IgnitionContext,
     val speciesComponent: SpeciesComponent,
     val initialPoint: Coord,
     val preIgnitionData: IndexedSeq[PreIgnitionData],

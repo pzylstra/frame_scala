@@ -21,7 +21,7 @@ class IgnitionPathBuilderSpec extends IgnitionPathTestBase {
   it should "throw an execption if the first segment start point is different to the builder initial point" in {
     intercept [IllegalArgumentException] {
       val init = Coord(1.0, 2.0)
-      val builder = IgnitionPathBuilder(stratumLevel, spComp, init)
+      val builder = IgnitionPathBuilder(context, spComp, init)
       
       val other = Coord(3.0, 4.0)
       builder.addSegment(1, other, other.toOffset(1.0, 1.0))

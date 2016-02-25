@@ -15,7 +15,7 @@ class DefaultFireModelResult(
     run1: FireModelRunResult, 
     run2: FireModelRunResult) extends FireModelResult {
   
-  val hasSecondRun: Boolean =
+  private val hasSecondRun: Boolean =
     run2.stratumOutcomes.nonEmpty
 
   /*
@@ -53,6 +53,8 @@ class DefaultFireModelResult(
       StratumFlameSummary(level, len, angle, height)
     }
   }
+  
+  val runResults = Vector(run1, run2)
     
 }
 

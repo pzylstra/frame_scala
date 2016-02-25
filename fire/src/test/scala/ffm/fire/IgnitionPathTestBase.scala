@@ -19,12 +19,10 @@ val species = mock[Species]
   val stratumLevel = StratumLevel.Canopy
   val site = mock[Site]
  
-  /*
   val context = mock[IgnitionContext]
   when (context.site) thenReturn site
   when (context.stratumLevel) thenReturn stratumLevel
-  */
-
+ 
   // This extends the IgntionPathBuilder with a method to 
   // add segment objects directly, which is convenient for
   // test comparisons.
@@ -35,7 +33,7 @@ val species = mock[Species]
 
   val c0 = Coord.Origin
 
-  def newBuilder() = IgnitionPathBuilder(stratumLevel, spComp, c0)
+  def newBuilder() = IgnitionPathBuilder(context, spComp, c0)
   
   /*
    * Creates a Coord with the given X value and Y=0

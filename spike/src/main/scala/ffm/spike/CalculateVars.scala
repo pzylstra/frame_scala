@@ -10,8 +10,9 @@ import scala.util.Success
 import ffm.forest.StratumLevel
 import ffm.util.FileUtils
 import ffm.fire.DefaultPlantFlameModel
-import ffm.fire.SpikeIgnitionPathModel
-import ffm.fire.SingleSiteFireModelRunner
+import ffm.fire.DefaultIgnitionPathModel
+import ffm.fire.DefaultSingleSiteFireModelRunner
+import ffm.forest.DefaultVegetationWindModel
 
 /**
  * Temp hack program used to calculate LAI and ignitability coefficient for each 
@@ -57,10 +58,11 @@ object CalculateVars extends App {
     }
 
     // run the fire model and get flame heights
-    val pathModel = new SpikeIgnitionPathModel
+    val pathModel = new DefaultIgnitionPathModel
     val plantFlameModel = DefaultPlantFlameModel
+    val windModel = DefaultVegetationWindModel
     val fireLineLength = 100.0
-    val result = SingleSiteFireModelRunner.run(pathModel, plantFlameModel)(site, fireLineLength)
+    val result = DefaultSingleSiteFireModelRunner.run(pathModel, plantFlameModel, windModel)(site, fireLineLength)
 
     val flameHeightsByLevel = {
       val levelsAndHts = result.stratumResults.map(res => (res.level, res.flameHeight) )

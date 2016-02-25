@@ -1,9 +1,11 @@
 package ffm.io
 
-import ffm.forest.{ Species, SpeciesComponent }
 import scala.util.Try
-import ffm.geometry.CrownPoly
+
+import ffm.forest.DefaultSpecies
 import ffm.forest.LeafForm
+import ffm.forest.SpeciesComponent
+import ffm.geometry.CrownPoly
 
 object SpeciesComponentFactory {
 
@@ -48,7 +50,7 @@ object SpeciesComponentFactory {
 
   private def buildSpecies(vas: ValueAssignments): SpeciesComponent = {
 
-    val sp = Species(
+    val sp = DefaultSpecies(
       name = vas.str("name"),
       crown = CrownPoly(hc = vas.dval("hc"), he = vas.dval("he"), ht = vas.dval("ht"), hp = vas.dval("hp"), w = vas.dval("w")),
       liveLeafMoisture = vas.dval("liveLeafMoisture"),

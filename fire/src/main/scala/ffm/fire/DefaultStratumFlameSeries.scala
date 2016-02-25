@@ -1,7 +1,7 @@
 package ffm.fire
 
-import ffm.geometry.Coord
 import ffm.forest.Stratum
+import ffm.geometry.Coord
 
 /**
  * Companion object to create StratumFlameSeries instances.
@@ -28,7 +28,7 @@ object DefaultStratumFlameSeries {
 
     val flameLengths: IndexedSeq[Double] = sortedFlames map (_.flameLength)
 
-    val meanFlameLength: Double = FlameCalculator.mean(sortedFlames, _.flameLength).getOrElse(0.0)
+    val meanFlameLength: Double = calculateMean(flameLengths).getOrElse(0.0)
 
     val longestFlame = sortedFlames.head
 
@@ -38,16 +38,21 @@ object DefaultStratumFlameSeries {
       math.min(maxFlameLength, meanFlameLength + Stats.stddev(flameLengths, meanFlameLength))
 
     val meanOrigin: Coord = {
-      val x = FlameCalculator.mean(sortedFlames, _.origin.x).getOrElse(0.0)
-      val y = FlameCalculator.mean(sortedFlames, _.origin.y).getOrElse(0.0)
+      val x = calculateMean(sortedFlames.map(_.origin.x)).getOrElse(0.0)
+      val y = calculateMean(sortedFlames.map(_.origin.y)).getOrElse(0.0)
       Coord(x, y)
     }
 
     /** Mean depth ignited. */
-    val meanDepthIgnited: Double = FlameCalculator.mean(sortedFlames, _.depthIgnited).getOrElse(0.0)
+    val meanDepthIgnited: Double = calculateMean(sortedFlames.map(_.depthIgnited)).getOrElse(0.0)
 
     /** Mean flame delta temperature. */
-    val meanDeltaTemperature: Double = FlameCalculator.mean(sortedFlames, _.deltaTemperature).getOrElse(0.0)
+    val meanDeltaTemperature: Double = calculateMean(sortedFlames.map(_.deltaTemperature)).getOrElse(0.0)
+  }
+  
+  private def calculateMean(xs: Seq[Double]): Option[Double] = xs match {
+    case Seq() => None
+    case xs => Some(Stats.mean(xs))
   }
 
 }

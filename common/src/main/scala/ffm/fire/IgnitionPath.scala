@@ -11,8 +11,11 @@ trait IgnitionPath {
   /** The species for which ignition was modelled, and its weighting within the stratum. */
   def speciesComponent: SpeciesComponent
   
-  /** The stratum level in which the species occurs. */
-  def stratumLevel: StratumLevel
+  /** 
+   * Context data (including site, stratum level, flames) which applied to the ignition 
+   * simulation. 
+   */
+  def context: IgnitionContext
   
   /** The initial point on the edge of the crown for the ignition simulation. */
   def initialPoint: Coord
