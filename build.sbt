@@ -2,7 +2,7 @@ name := "ffm"
 
 description := "Forest flammability model"
 
-scalaVersion in ThisBuild := "2.11.7"
+scalaVersion in ThisBuild := "2.11.8"
 
 lazy val printClasspath = taskKey[Unit]("Print classpath")
 
@@ -24,7 +24,7 @@ lazy val testSettings = Seq(
 )
 
 lazy val root = (project in file(".")).
-  aggregate(common, fire, forest, io, spike)
+  aggregate(common, fire, forest, io, runner)
 
 lazy val common = (project in file("common")).
   settings(commonSettings: _*).
@@ -48,6 +48,7 @@ lazy val fire = (project in file("fire")).
 
 lazy val io = (project in file("io")).
   dependsOn(common, forest).
+  settings(commonSettings: _*).
   settings(testSettings: _*).
   settings(
     libraryDependencies ++= Seq(
@@ -55,15 +56,14 @@ lazy val io = (project in file("io")).
     )
   )
 
-lazy val spike = (project in file("spike")).
+lazy val runner = (project in file("runner")).
   dependsOn(common, fire, forest, io).
-  settings(
-    libraryDependencies ++= Seq(
-      "com.typesafe.slick" %% "slick" % "3.1.1",
-      "org.xerial" % "sqlite-jdbc" % "3.7.2",         // SQLite JDBC driver
-      "org.slf4j" % "slf4j-nop" % "1.6.4" 
-    )
-  )
+  settings(commonSettings: _*).
+  settings(testSettings: _*)
+
+
+// For sbt-pack plugin
+packAutoSettings
 
 // Tell sbteclipse plugin to:
 // - download source and create Eclipse attachments for dependencies

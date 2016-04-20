@@ -1,11 +1,11 @@
-package ffm.io
+package ffm.io.legacy
 
 import scala.util.Try
-
 import ffm.forest.DefaultSpecies
 import ffm.forest.LeafForm
 import ffm.forest.SpeciesComponent
 import ffm.geometry.CrownPoly
+
 
 object SpeciesComponentFactory {
 

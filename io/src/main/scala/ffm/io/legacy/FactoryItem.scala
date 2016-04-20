@@ -1,4 +1,4 @@
-package ffm.io
+package ffm.io.legacy
 
 /**
  * Holds the details of a parameter used in creating a new model object.

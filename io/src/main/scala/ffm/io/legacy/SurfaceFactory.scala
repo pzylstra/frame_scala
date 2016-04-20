@@ -1,7 +1,6 @@
-package ffm.io
+package ffm.io.legacy
 
 import scala.util.Try
-
 import ffm.forest.Surface
 import ffm.util.Units
 

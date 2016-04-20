@@ -1,11 +1,10 @@
-package ffm.io
+package ffm.io.legacy
 
 import java.io.FileNotFoundException
 
 import org.scalatest.TryValues
 
 import ffm.BasicSpec
-import ffm.io.ExpressionSyntax._
 
 class ParamFileParserSpec extends BasicSpec with TryValues {
 

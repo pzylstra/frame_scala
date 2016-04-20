@@ -9,6 +9,7 @@ import ffm.geometry.Coord
  * - surface characteristics
  * - vegetation with zero or more strata
  * - weather
+ * - context (properties of the site's context other than weather)
  */
 trait Site {
   def id: Long
@@ -16,4 +17,5 @@ trait Site {
   def surface: Surface
   def vegetation: Vegetation
   def weather: WeatherModel
+  def context: SiteContext
 }

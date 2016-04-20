@@ -1,4 +1,6 @@
-package ffm.io
+package ffm.io.legacy
+
+import scala.annotation.implicitNotFound
 
 /**
  * Defines the traits and classes which represent parameter elements

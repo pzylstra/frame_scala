@@ -21,10 +21,10 @@ trait Stratum extends Ordered[Stratum] {
   val averageMidHeight: Double
   
   /** Plant separation (provided value). */
-  def plantSep: Double
+  def plantSeparation: Double
   
   /** Plant separation (possibly adjusted average value). */
-  val modelPlantSep: Double
+  val modelPlantSeparation: Double
   
   /** Weighted average canopy cover. */
   val cover: Double

@@ -5,10 +5,10 @@ import scala.Vector
 class DefaultStratum private (
   val level: StratumLevel,
   speciesComps: IndexedSeq[SpeciesComponent],
-  val plantSep: Double) extends Stratum {
+  val plantSeparation: Double) extends Stratum {
   
   require(!speciesComps.isEmpty, "one or more SpeciesComponents required")
-  require(plantSep >= 0, "plant separation must be >= 0")
+  require(plantSeparation >= 0, "plant separation must be >= 0")
   
   /** Compare this stratum with another on the basis of their levels. */
   override def compare(that: Stratum): Int = this.level.compare(that.level)
@@ -34,11 +34,11 @@ class DefaultStratum private (
   val averageMidHeight = wtAv( sc => (crown(sc).top + crown(sc).bottom) / 2 )
   
   /** Weighted average plant separation. */
-  val modelPlantSep = math.max(plantSep, averageWidth)
+  val modelPlantSeparation = math.max(plantSeparation, averageWidth)
   
   /** Weighted average canopy cover. */
   val cover = { 
-    val p = averageWidth / modelPlantSep 
+    val p = averageWidth / modelPlantSeparation 
     p * p 
   }
   
@@ -78,12 +78,12 @@ object DefaultStratum {
   /**
    * Creates a Stratum object with a vector of SpeciesComponents.
    */
-  def apply(level: StratumLevel, speciesComp: Seq[SpeciesComponent], plantSep: Double): Stratum =
-    new DefaultStratum(level, speciesComp.toVector, plantSep)
+  def apply(level: StratumLevel, speciesComp: Seq[SpeciesComponent], plantSeparation: Double): Stratum =
+    new DefaultStratum(level, speciesComp.toVector, plantSeparation)
   
   /**
    * Creates a Stratum object with a single Species.
    */
-  def apply(level: StratumLevel, species: Species, plantSep: Double): Stratum =
-    new DefaultStratum(level, Vector(SpeciesComponent(species, 1.0)), plantSep)
+  def apply(level: StratumLevel, species: Species, plantSeparation: Double): Stratum =
+    new DefaultStratum(level, Vector(SpeciesComponent(species, 1.0)), plantSeparation)
 }

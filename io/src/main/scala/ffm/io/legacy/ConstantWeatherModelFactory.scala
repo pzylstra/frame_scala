@@ -1,10 +1,10 @@
-package ffm.io
+package ffm.io.legacy
 
 import scala.util.Try
-
 import ffm.forest.ConstantWeatherModel
 import ffm.forest.WeatherModel
 import ffm.util.Units
+
 
 object ConstantWeatherModelFactory {
 

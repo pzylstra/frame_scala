@@ -48,7 +48,10 @@ class DefaultVegetationSpec extends MockSpec {
   val weather = ConstantWeatherModel(temperature = 20.0, windSpeed = 30.0)
 
   val vegetation = DefaultVegetation(strata = Vector(midStorey, canopy), overlaps = Vector())
-  val site = SingleSite(surface, vegetation, weather)
+  
+  val siteContext = SiteContext(fireLineLength = 100.0)
+  
+  val site = SingleSite(surface, vegetation, weather, siteContext)
   
 
   "DefaultVegetation" should "identify the correct vegetation layers" in {

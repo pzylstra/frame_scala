@@ -1,18 +1,19 @@
 package ffm.spike
 
-import scala.util.{ Failure, Success }
-import ffm.io._
+import scala.util.Failure
+import scala.util.Success
+
 import ffm.fire._
+import ffm.io.legacy._
+import ffm.runner.Runner
 import ffm.util.FileUtils
-import ffm.forest.StratumLevel
-import ffm.forest.DefaultVegetationWindModel
 
 object BatchRunner {
   
   val paramDir = "c:/michael/coding/ffm/params"
   val paramExt = "txt"
   
-  val paramFilesSubset = List("93a.txt")
+  val paramFilesSubset = List("1a.txt")
   
   def main(args: Array[String]): Unit = {
     val allFiles = (new java.io.File(paramDir)).listFiles.filter(_.isFile).toList
@@ -25,15 +26,13 @@ object BatchRunner {
       val name = pf.getPath
       if (name.endsWith(paramExt)) {
         println(name)
-        run(name)
+        loadAndRun(name)
       }
     }
   }
   
-
-  def run(paramPath: String, outputDir: String = "c:/michael/coding/ffm/testing"): Unit = {
-    
-    val result = Runner.run(paramPath)
+  def loadAndRun(paramPath: String, outputDir: String = "c:/michael/coding/ffm/testing"): Unit = {  
+    val resultText = runAndFormat(paramPath)
     
     val outPath = {
       import FileUtils._
@@ -44,14 +43,10 @@ object BatchRunner {
     }
 
     if (outPath.isDefined) 
-      FileUtils.withPrintWriter(outPath.get) { writer => writer.println(result) }
+      FileUtils.withPrintWriter(outPath.get) { writer => writer.println(resultText) }
   }
-}
-
-object Runner {
-
-  def run(paramPath: String): String = {
-
+  
+  def runAndFormat(paramPath: String): String = {
     val modelDef = ParamFileParser.readTextFormatFile(paramPath).get
 
     // get fallback value for dead leaf moisture from the surface 
@@ -65,19 +60,12 @@ object Runner {
       case Failure(t) => throw t
     }
 
-    // run the fire model
-    val pathModel = new DefaultIgnitionPathModel
-    val plantFlameModel = DefaultPlantFlameModel
-    val windModel = DefaultVegetationWindModel
-
-    // TODO: read fire line length from parameters file (check with Phil if it ever changes)
-    val fireLineLength = 100.0
-    
-    val result = DefaultSingleSiteFireModelRunner.run(pathModel, plantFlameModel, windModel)(site, fireLineLength)    
-
+    val result = Runner.run(site)
     ResultFormatter.format(result)
   }
+    
 }
+
 
 object PreIgnitionFormatter {
   val preHeatingDryingHeader =

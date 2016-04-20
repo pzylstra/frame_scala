@@ -1,4 +1,4 @@
-package ffm.io
+package ffm.io.legacy
 
 import scala.util.parsing.input.CharSequenceReader
 import scala.util.parsing.combinator.JavaTokenParsers

@@ -17,14 +17,13 @@ import ffm.numerics.Numerics
 
 object DefaultSingleSiteFireModelRunner {
 
-  def run(pathModel: IgnitionPathModel, plantFlameModel: PlantFlameModel, windModel: VegetationWindModel)(site: Site, fireLineLength: Double): FireModelResult = {
+  def run(pathModel: IgnitionPathModel, plantFlameModel: PlantFlameModel, windModel: VegetationWindModel)(site: Site): FireModelResult = {
     val fireModel = new DefaultSingleSiteFireModel(pathModel, DefaultPlantFlameModel, windModel)
     
     // First run of the model includes the canopy stratum (if one exists)
     val run1 = fireModel.run(
         site, 
-        includeCanopy = true, 
-        fireLineLength = fireLineLength)
+        includeCanopy = true)
 
     val fireSpreadInCanopy = run1.stratumOutcomes exists { outcome =>
       outcome.stratum.level == StratumLevel.Canopy &&
@@ -38,13 +37,12 @@ object DefaultSingleSiteFireModelRunner {
       if (fireSpreadInCanopy)
         fireModel.run(
             site, 
-            includeCanopy = false, 
-            fireLineLength = fireLineLength)
+            includeCanopy = false)
       else
         (new DefaultFireModelRunResultBuilder(site)).toResult()
     
     // Return the aggregate result
-    new DefaultFireModelResult(site, fireLineLength, windModel, run1, run2)
+    new DefaultFireModelResult(site, windModel, run1, run2)
   }
 }
 
@@ -74,8 +72,8 @@ class DefaultSingleSiteFireModel(
   /**
    * Runs the fire model.
    */
-  def run(site: Site, includeCanopy: Boolean, fireLineLength: Double): FireModelRunResult = {
-    val worker = new Worker(site, includeCanopy, fireLineLength)
+  def run(site: Site, includeCanopy: Boolean): FireModelRunResult = {
+    val worker = new Worker(site, includeCanopy)
     worker.run()
   }
 
@@ -83,7 +81,7 @@ class DefaultSingleSiteFireModel(
    * This class encloses the fire model functions and allows key variables
    * to remain conveniently in scope.
    */
-  private class Worker(site: Site, includeCanopy: Boolean, fireLineLength: Double) {
+  private class Worker(site: Site, includeCanopy: Boolean) {
 
     /**
      * Holds results from a plant or stratum ignition run.
@@ -98,7 +96,7 @@ class DefaultSingleSiteFireModel(
       def pathsWithIgnition = paths filter (_.hasIgnition)
     }
 
-    val surfaceOutcome = new DefaultSurfaceOutcome(site, fireLineLength, windModel, includeCanopy)
+    val surfaceOutcome = new DefaultSurfaceOutcome(site, windModel, includeCanopy)
     val surfaceFireAttr = new DefaultSurfaceFireAttributes(site.surface)
 
     val initPreHeatingFlame = DefaultPreHeatingFlame(
@@ -274,11 +272,11 @@ class DefaultSingleSiteFireModel(
       if (!plantRunResult.isIgnition) Vector.empty
       else {
         val avWidth = plantRunResult.stratum.averageWidth
-        val plantSep = plantRunResult.stratum.modelPlantSep
+        val plantSep = plantRunResult.stratum.modelPlantSeparation
 
         val lengths = plantRunResult.weightedFlames.params map (_.length)
         val mergedFlameLengths = lengths map { len =>
-          DefaultFlame.lateralMergedFlameLength(len, fireLineLength, avWidth, plantSep)
+          DefaultFlame.lateralMergedFlameLength(len, site.context.fireLineLength, avWidth, plantSep)
         }
 
         val flames = (0 until plantRunResult.weightedFlames.size) map { i =>
@@ -387,7 +385,7 @@ class DefaultSingleSiteFireModel(
      * Creates an artificial crown for a stratum flame run.
      */
     def createStratumCrown(stratum: Stratum): CrownPoly = {
-      val minx = stratum.modelPlantSep - stratum.averageWidth / 2
+      val minx = stratum.modelPlantSeparation - stratum.averageWidth / 2
       val maxx = minx + StratumBigCrownWidth
 
       val tanSlope = math.tan(site.surface.slope)
@@ -418,7 +416,7 @@ class DefaultSingleSiteFireModel(
         leafSeparation = sp.leafSeparation,
         stemOrder = sp.stemOrder,
         clumpDiameter = sp.crown.width,
-        clumpSeparation = math.max(sp.clumpSeparation, stratum.modelPlantSep - stratum.averageWidth))
+        clumpSeparation = math.max(sp.clumpSeparation, stratum.modelPlantSeparation - stratum.averageWidth))
     }
 
     /**
@@ -544,7 +542,9 @@ class DefaultSingleSiteFireModel(
         case (flames, lower) =>
           val lowerFlames = flameSeriesByLevel(lower.level).sortedFlames
 
-          DefaultFlame.combineFlames(flames, lowerFlames, flameWeightedWindSpeed, site.surface.slope, fireLineLength)
+          DefaultFlame.combineFlames(
+              flames, lowerFlames, flameWeightedWindSpeed, 
+              site.surface.slope, site.context.fireLineLength)
       }
 
       // Return the combined flames as the incident flames

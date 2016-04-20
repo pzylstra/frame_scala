@@ -1,7 +1,6 @@
-package ffm.io
+package ffm.io.legacy
 
 import scala.util.Try
-
 import ffm.forest.DefaultStratum
 import ffm.forest.SpeciesComponent
 import ffm.forest.Stratum
@@ -34,7 +33,7 @@ object StratumFactory {
     for {
       level <- Try( StratumLevel(vas.str("level")) )
       plantSeparation <- Try( vas.dval("plantSeparation") )
-      stratum <- Try( DefaultStratum(level=level, plantSep=plantSeparation, speciesComp=spp) )
+      stratum <- Try( DefaultStratum(level=level, plantSeparation=plantSeparation, speciesComp=spp) )
     } yield stratum
   }
 }

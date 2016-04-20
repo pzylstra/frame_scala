@@ -1,13 +1,11 @@
-package ffm.io
+package ffm.io.legacy
 
 import scala.util.parsing.combinator.Parsers
 import scala.util.parsing.input.Position
 import scala.util.parsing.input.Reader
-
-import scala.language.implicitConversions 
+import scala.language.implicitConversions
 
 import ExpressionSyntax._
-
 
 trait ASTParser extends Parsers {
   

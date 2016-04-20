@@ -1,4 +1,4 @@
-package ffm.io
+package ffm.io.legacy
 
 import ffm.BasicSpec
 

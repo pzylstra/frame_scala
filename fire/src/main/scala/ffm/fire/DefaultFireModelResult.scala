@@ -10,7 +10,6 @@ import ffm.forest.VegetationWindModel
  */
 class DefaultFireModelResult(
     site: Site, 
-    fireLineLength: Double, 
     windModel: VegetationWindModel,
     run1: FireModelRunResult, 
     run2: FireModelRunResult) extends FireModelResult {
@@ -46,7 +45,7 @@ class DefaultFireModelResult(
         if (outcome.stratum.level == StratumLevel.Canopy)
           DefaultFlame.windEffectFlameAngle(len, windSpeed, site.surface.slope)
         else
-          DefaultFlame.flameAngle(len, windSpeed, site.surface.slope, fireLineLength)
+          DefaultFlame.flameAngle(len, windSpeed, site.surface.slope, site.context.fireLineLength)
 
       val height = origin.y + len * math.sin(angle) - (origin.x + len * math.cos(angle)) * math.tan(site.surface.slope)
 

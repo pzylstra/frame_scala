@@ -1,7 +1,6 @@
-package ffm.io
+package ffm.io.legacy
 
 import scala.util.Try
-
 import ffm.forest.SingleSite
 import ffm.forest.Site
 import ffm.forest.Stratum
@@ -18,15 +17,16 @@ object SingleSiteFactory {
     for {
       weatherModel <- ConstantWeatherModelFactory.create(modelDef)
       surface <- SurfaceFactory.create(modelDef)
+      siteContext <- SiteContextFactory.create(modelDef)
 
-      strata <- buildStrata(modelDef, fallback)
+      strata <- createStrata(modelDef, fallback)
       overlaps <- Try(loadOverlaps(modelDef))
       veg <- Try(DefaultVegetation(strata, overlaps))
 
-    } yield SingleSite(surface = surface, vegetation = veg, weather = weatherModel)
+    } yield SingleSite(surface = surface, vegetation = veg, weather = weatherModel, context = siteContext)
   }
 
-  private def buildStrata(modelDef: ModelDef, fallback: FallbackProvider): Try[List[Stratum]] = {
+  private def createStrata(modelDef: ModelDef, fallback: FallbackProvider): Try[List[Stratum]] = {
     val tries = modelDef.strata map (sdef => StratumFactory.create(sdef, fallback))
 
     // This incantation converts `tries` from a List[Try[Stratum]] to a Try[List[Stratum]]
@@ -62,4 +62,5 @@ object SingleSiteFactory {
       }
     }
   }
+  
 }

@@ -8,6 +8,11 @@ import ffm.numerics.{Numerics, RoundedDoubleSortedSet}
  */
 class DefaultVegetation(val strata: IndexedSeq[Stratum], val overlaps: IndexedSeq[StratumOverlap]) extends Vegetation {
   
+  override def toString: String = {
+    val noun = if (strata.size == 1) "stratum" else "strata"
+    s"DefaultVegetation(${strata.size} $noun)"
+  }
+  
   /** Strata indexed by StatumLevel. */
   val strataByLevel: Map[StratumLevel, Stratum] =
     Map() ++ (strata map (s => (s.level -> s) ))

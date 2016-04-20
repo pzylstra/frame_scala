@@ -66,16 +66,19 @@ object Units {
   private val converterLookup: Map[ String, List[Converter] ] = converters.groupBy { _.fromAbbrev }
   
   def convert(fromAbbrev: String, toAbbrev: String, value: Double): Double = {
-    converterLookup.get(fromAbbrev) match { 
-      case Some(cs) =>
-        cs.find { _.toAbbrev == toAbbrev } match {
-          case Some(c) => c.fn(value)
-          case None =>
-            throw new IllegalArgumentException(s"unrecognized unit abbreviation: $toAbbrev")
-        }  
-        
-      case None =>
-        throw new IllegalArgumentException(s"unrecognized unit abbreviation: $fromAbbrev")
+    if (fromAbbrev == toAbbrev) value
+    else {
+      converterLookup.get(fromAbbrev) match {
+        case Some(cs) =>
+          cs.find { _.toAbbrev == toAbbrev } match {
+            case Some(c) => c.fn(value)
+            case None =>
+              throw new IllegalArgumentException(s"unrecognized unit abbreviation: $toAbbrev")
+          }
+
+        case None =>
+          throw new IllegalArgumentException(s"unrecognized unit abbreviation: $fromAbbrev")
+      }
     }
   }
     

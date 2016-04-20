@@ -6,7 +6,7 @@ import ffm.forest.StratumLevel
 import ffm.forest.VegetationWindModel
 import ffm.geometry.Coord
 
-class DefaultSurfaceOutcome(site: Site, fireLineLength: Double, windModel: VegetationWindModel, includeCanopy: Boolean) extends SurfaceOutcome {
+class DefaultSurfaceOutcome(site: Site, windModel: VegetationWindModel, includeCanopy: Boolean) extends SurfaceOutcome {
 
   /**
    * Wind speed at the surface, derived from ambient wind speed as modified by vegetation.
@@ -15,7 +15,7 @@ class DefaultSurfaceOutcome(site: Site, fireLineLength: Double, windModel: Veget
 
   private val fireAttr = new DefaultSurfaceFireAttributes(site.surface)
   private val len = fireAttr.flameLength(windSpeed)
-  private val angle = DefaultFlame.flameAngle(len, windSpeed, site.surface.slope, fireLineLength)
+  private val angle = DefaultFlame.flameAngle(len, windSpeed, site.surface.slope, site.context.fireLineLength)
 
   /**
    * Surface flames.
