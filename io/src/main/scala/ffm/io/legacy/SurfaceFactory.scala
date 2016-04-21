@@ -8,6 +8,7 @@ object SurfaceFactory {
 
   import ExpressionSyntax._
   import FactoryItem._
+  import Units._
 
   val items = List(
     item("slope", "slope"),
@@ -26,10 +27,10 @@ object SurfaceFactory {
   private def buildSurface(vas: ValueAssignments): Surface = {
     Surface(
       // input slope is degrees
-      slope = Units.convert("deg", "rad", vas.dval("slope") ),
+      slope = convert(AngleDegree, vas.dval("slope"), AngleRadian),
       deadFuelMoistureProp = vas.dval("deadFuelMoistureProp"),
       // input fuel load is tonnes per hectare - convert to kg / sq m
-      fuelLoad = Units.convert("t/ha", "kg/m2", vas.dval("fuelLoad") ),  
+      fuelLoad = Units.convert(ArealMassTonnesPerHectare, vas.dval("fuelLoad"), ArealMassKilogramsPerSquareMetre),  
       meanFuelDiameter = vas.dval("meanFuelDiameter"),
       meanFinenessLeaves = vas.dval("meanFinenessLeaves"))
   }

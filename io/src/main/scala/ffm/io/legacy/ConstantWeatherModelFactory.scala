@@ -10,6 +10,7 @@ object ConstantWeatherModelFactory {
 
   import ExpressionSyntax._
   import FactoryItem._
+  import Units._
   
   val items = List(
     item("incident wind speed", "windSpeed"),
@@ -24,7 +25,7 @@ object ConstantWeatherModelFactory {
           
           windSpeed= {
             val kph = vas.dval("windSpeed")
-            Units.convert("km/h", "m/s", kph)
+            convert(VelocityKilometresPerHour, kph, VelocityMetresPerSecond)
           }))
     } yield weatherModel
   }

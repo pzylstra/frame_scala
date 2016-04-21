@@ -1,11 +1,8 @@
 package ffm.util
 
-import org.scalatest.Matchers
-import org.scalatest.FlatSpec
+import ffm.BasicSpec
 
-
-
-class OptionsSpec extends FlatSpec with Matchers {
+class OptionsSpec extends BasicSpec {
 
   "Options.all" should "be true when all args have values" in {
     Options.all(Some(1), Some(2), Some(3)) should be (true)

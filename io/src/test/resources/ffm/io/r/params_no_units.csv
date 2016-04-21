@@ -1,0 +1,120 @@
+stratum,species,param,value
+NA,NA,fireLineLength,100
+NA,NA,windSpeed,19
+NA,NA,overlapping,near surface, elevated, automatic
+NA,NA,overlapping,near surface, midstorey, automatic
+NA,NA,overlapping,elevated, midstorey, automatic
+NA,NA,overlapping,elevated, canopy, automatic
+NA,NA,overlapping,midstorey, canopy, automatic
+NA,NA,slope,18
+NA,NA,deadFuelMoistureProp,0.036
+NA,NA,fuelLoad,18
+NA,NA,meanFuelDiameter,5e-3
+NA,NA,meanFinenessLeaves,0.39e-3
+NA,NA,temperature,35.2
+1,NA,levelName,near surface
+1,NA,plantSeparation,2.45
+1,1,composition,100
+1,1,name,Joycea pallida
+1,1,liveLeafMoisture,100e-2
+1,1,propSilicaFreeAsh,NA
+1,1,ignitionTemp,260
+1,1,propDead,0.5
+1,1,leafForm,flat
+1,1,leafThickness,0.34e-3
+1,1,leafWidth,2.4e-3
+1,1,leafLength,150e-3
+1,1,leafSeparation,0.78e-2
+1,1,stemOrder,1
+1,1,clumpSeparation,0
+1,1,clumpDiameter,0.5
+1,1,he,0
+1,1,ht,0.38
+1,1,hc,0
+1,1,hp,0.5
+1,1,w,0.95
+1,1,deadLeafMoisture,0.036
+2,NA,levelName,midstorey
+2,NA,plantSeparation,20
+2,2,composition,100
+2,2,name,Eucalyptus dives
+2,2,liveLeafMoisture,100e-2
+2,2,propSilicaFreeAsh,NA
+2,2,ignitionTemp,220
+2,2,propDead,0
+2,2,leafForm,flat
+2,2,leafThickness,0.4e-3
+2,2,leafWidth,15.8e-3
+2,2,leafLength,103.6e-3
+2,2,leafSeparation,1.66e-2
+2,2,stemOrder,5
+2,2,clumpSeparation,0.4
+2,2,clumpDiameter,0.4
+2,2,he,0.3
+2,2,ht,1.9
+2,2,hc,0.4
+2,2,hp,2
+2,2,w,2.2
+2,2,deadLeafMoisture,0.036
+2,3,composition,100
+2,3,name,Eucalyptus macrorhyncha
+2,3,liveLeafMoisture,100e-2
+2,3,propSilicaFreeAsh,NA
+2,3,ignitionTemp,220
+2,3,propDead,0
+2,3,leafForm,flat
+2,3,leafThickness,0.4e-3
+2,3,leafWidth,16.5e-3
+2,3,leafLength,80.2e-3
+2,3,leafSeparation,1.17e-2
+2,3,stemOrder,6
+2,3,clumpSeparation,0.4
+2,3,clumpDiameter,0.4
+2,3,he,0.3
+2,3,ht,1.9
+2,3,hc,0.4
+2,3,hp,2
+2,3,w,2.2
+2,3,deadLeafMoisture,0.036
+3,NA,levelName,canopy
+3,NA,plantSeparation,7.8
+3,4,composition,100
+3,4,name,Eucalyptus dives
+3,4,liveLeafMoisture,100e-2
+3,4,propSilicaFreeAsh,NA
+3,4,ignitionTemp,220
+3,4,propDead,0
+3,4,leafForm,flat
+3,4,leafThickness,0.4e-3
+3,4,leafWidth,15.8e-3
+3,4,leafLength,103.6e-3
+3,4,leafSeparation,1.66e-2
+3,4,stemOrder,5
+3,4,clumpSeparation,1.3
+3,4,clumpDiameter,1.3
+3,4,he,4.9
+3,4,ht,10.7
+3,4,hc,4.9
+3,4,hp,12
+3,4,w,4.6
+3,4,deadLeafMoisture,0.036
+3,5,composition,100
+3,5,name,Eucalyptus macrorhyncha
+3,5,liveLeafMoisture,100e-2
+3,5,propSilicaFreeAsh,NA
+3,5,ignitionTemp,220
+3,5,propDead,0
+3,5,leafForm,flat
+3,5,leafThickness,0.4e-3
+3,5,leafWidth,16.5e-3
+3,5,leafLength,80.2e-3
+3,5,leafSeparation,1.17e-2
+3,5,stemOrder,6
+3,5,clumpSeparation,1.3
+3,5,clumpDiameter,1.3
+3,5,he,4.9
+3,5,ht,10.7
+3,5,hc,4.9
+3,5,hp,12
+3,5,w,4.6
+3,5,deadLeafMoisture,0.036
