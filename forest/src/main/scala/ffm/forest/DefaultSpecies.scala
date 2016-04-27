@@ -20,8 +20,7 @@ object DefaultSpecies {
     liveLeafMoisture: Double,
     deadLeafMoisture: Double,
     propDead: Double,
-    propSilicaFreeAsh: Option[Double] = None,
-    ignitionTemp: Option[Double] = None,
+    ignitionTemp: Double,
     leafForm: LeafForm,
     leafThickness: Double,
     leafWidth: Double,
@@ -40,18 +39,7 @@ object DefaultSpecies {
 
     isProportion("propDead", propDead, allowZero = true)
 
-    require(Options.atLeast(1, propSilicaFreeAsh, ignitionTemp),
-      s"species $name has neither silica free ash proportion or ignition temp provided")
-
-    propSilicaFreeAsh match {
-      case Some(p) => isProportion("propSilicaFreeAsh", p, allowZero = false)
-      case None => // no value provided
-    }
-
-    ignitionTemp match {
-      case Some(t) => isPositive("ignitionTemp", t)
-      case None => // no value provided
-    }
+    isPositive("ignitionTemp", ignitionTemp)
 
     isNotNegative("leafThickness", leafThickness)
     isNotNegative("leafWidth", leafWidth)
@@ -64,7 +52,7 @@ object DefaultSpecies {
 
     new PlantSpecies(name.trim(), crown,
       liveLeafMoisture, deadLeafMoisture, propDead,
-      propSilicaFreeAsh, ignitionTemp,
+      ignitionTemp,
       leafForm, leafThickness, leafWidth, leafLength, leafSeparation,
       stemOrder, clumpDiameter, clumpSeparation)
   }
@@ -81,8 +69,7 @@ object DefaultSpecies {
     val liveLeafMoisture: Double,
     val deadLeafMoisture: Double,
     val propDead: Double,
-    val propSilicaFreeAsh: Option[Double],
-    val ignitionTemperatureProvided: Option[Double],
+    val ignitionTemperature: Double,
     val leafForm: LeafForm,
     val leafThickness: Double,
     val leafWidth: Double,
@@ -98,22 +85,7 @@ object DefaultSpecies {
     val leafArea = leafWidth * leafLength / 2.0
 
     val leafMoisture = propLive * liveLeafMoisture + propDead * deadLeafMoisture
-
-    /**
-     * Modelled ignition temperature (will be None if silica free ash proportion was not provided)
-     */
-    val ignitionTemperatureModelled: Option[Double] = propSilicaFreeAsh map { prop =>
-      val logPc = math.log(prop * 100)
-      354.0 - 13.9 * logPc - 2.91 * logPc * logPc
-    }
-
-    /**
-     * Ignition temperature: either the one provided for this species or
-     * one modelled from the proportion of silica free ash.
-     */
-    val ignitionTemperature: Double =
-      (ignitionTemperatureProvided orElse ignitionTemperatureModelled).get
-      
+     
     /**
      * Ignitability coefficient.
      */

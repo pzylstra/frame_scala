@@ -54,7 +54,7 @@ class ExpressionParserSpec extends BasicSpec {
   }
   
   it should "parse a text string containing words delimited by spaces" in {
-    val s = "silica free ash content"
+    val s = "live leaf moisture"
     parseExpression(s) should be {
       Text(s)
     }

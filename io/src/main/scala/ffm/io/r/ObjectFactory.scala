@@ -90,7 +90,6 @@ object ObjectFactory {
     ("liveLeafMoisture",      Unitless,                   Unitless),
     ("name",                  Unitless,                   Unitless),
     ("propDead",              Unitless,                   Unitless),
-    ("propSilicaFreeAsh",     Unitless,                   Unitless),
     ("stemOrder",             Unitless,                   Unitless),
     ("w",                     DistanceMetre,              DistanceMetre),
     ("levelName",             Unitless,                   Unitless),
@@ -249,8 +248,7 @@ object ObjectFactory {
       liveLeafMoisture = lu.dval("liveLeafMoisture"),
       deadLeafMoisture = lu.dval("deadLeafMoisture"),
       propDead = lu.dval("propDead"),
-      propSilicaFreeAsh = dopt(lu("propSilicaFreeAsh")),
-      ignitionTemp = dopt(lu("ignitionTemp")),
+      ignitionTemp = lu.dval("ignitionTemp"),
       leafForm = LeafForm(lu("leafForm")),
       leafThickness = lu.dval("leafThickness"),
       leafWidth = lu.dval("leafWidth"),
@@ -271,15 +269,26 @@ object ObjectFactory {
   }
 
   
+  /**
+   * Gets an optional Double value.
+   * 
+   * Was used for silica free ash content but unused at the moment.
+   */
   def dopt(x: String): Option[Double] = 
     if (isNA(x)) None else Some(x.toDouble)
   
+  /**
+   * Tests if a string value should be treated as NA (missing).
+   */
   def isNA(s: String, allowBlank: Boolean = true): Boolean = munge(s) match {
     case "" => allowBlank
     case "na" => true
     case _ => false
   }
 
+  /**
+   * Converts a string to lower case and removes all white-space characters.
+   */
   def munge(term: String): String = term.toLowerCase.replaceAll("\\s+", "")
 
   

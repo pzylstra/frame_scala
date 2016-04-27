@@ -408,7 +408,7 @@ class DefaultSingleSiteFireModel(
         liveLeafMoisture = sp.liveLeafMoisture,
         deadLeafMoisture = sp.deadLeafMoisture,
         propDead = sp.propDead,
-        ignitionTemp = Some(sp.ignitionTemperature),
+        ignitionTemp = sp.ignitionTemperature,
         leafForm = sp.leafForm,
         leafThickness = sp.leafThickness,
         leafWidth = sp.leafWidth,
