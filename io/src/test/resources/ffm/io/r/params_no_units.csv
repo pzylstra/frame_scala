@@ -1,11 +1,11 @@
 stratum,species,param,value
 NA,NA,fireLineLength,100
 NA,NA,windSpeed,19
-NA,NA,overlapping,near surface, elevated, automatic
-NA,NA,overlapping,near surface, midstorey, automatic
-NA,NA,overlapping,elevated, midstorey, automatic
-NA,NA,overlapping,elevated, canopy, automatic
-NA,NA,overlapping,midstorey, canopy, automatic
+NA,NA,overlapping,"near surface, elevated, automatic"
+NA,NA,overlapping,"near surface, midstorey, automatic"
+NA,NA,overlapping,"elevated, midstorey, automatic"
+NA,NA,overlapping,"elevated, canopy, automatic"
+NA,NA,overlapping,"midstorey, canopy, automatic"
 NA,NA,slope,18
 NA,NA,deadFuelMoistureProp,0.036
 NA,NA,fuelLoad,18

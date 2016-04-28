@@ -52,7 +52,8 @@ lazy val io = (project in file("io")).
   settings(testSettings: _*).
   settings(
     libraryDependencies ++= Seq(
-      "org.scala-lang.modules" %% "scala-parser-combinators" % "1.0.4"
+      "org.scala-lang.modules" %% "scala-parser-combinators" % "1.0.4",
+      "com.github.tototoshi" %% "scala-csv" % "1.3.1"
     )
   )
 

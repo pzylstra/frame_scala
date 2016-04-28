@@ -31,23 +31,7 @@ import ffm.util.Units
  */
 object ObjectFactory {
   
-  type ParamTable = Array[Array[String]]
-  
-  /** Parameter table column for stratum. */
-  val StratumCol = 0
-  
-  /** Parameter table column for species. */
-  val SpeciesCol = 1
-  
-  /** Parameter table column for parameter label. */
-  val ParamCol = 2
-  
-  /** Parameter table column for value. */
-  val ValueCol = 3
-  
-  /** Parameter table column for units (optional). */
-  val UnitsCol = 4
-  
+  import ParamTables._  
   import Units._
   
   /**
@@ -65,7 +49,6 @@ object ObjectFactory {
   val ParamUnitsTable = IndexedSeq(
     ("deadFuelMoistureProp",  Unitless,                   Unitless),
     ("fireLineLength",        DistanceMetre,              DistanceMetre),
-    ("length",                DistanceMetre,              DistanceMetre),
     ("fuelLoad",              ArealMassTonnesPerHectare,  ArealMassKilogramsPerSquareMetre),
     ("meanFinenessLeaves",    DistanceMetre,              DistanceMetre),
     ("meanFuelDiameter",      DistanceMetre,              DistanceMetre),
@@ -95,20 +78,19 @@ object ObjectFactory {
     ("levelName",             Unitless,                   Unitless),
     ("plantSeparation",       DistanceMetre,              DistanceMetre) ).map( p => ParamUnits.tupled(p) )
     
+    
+  /** 
+   * Provides lookup of units for supported parameters.
+   */
   object ParamUnitsLookup {
     val m = Map() ++ (ParamUnitsTable.map { pu => (munge(pu.label), pu) })
     
+    /** Retrieves units for a parameter (assumed supported). */
     def apply(param: String): ParamUnits = m( munge(param) )
+    
+    /** Checks if a parameter is supported. */
+    def isRecognizedParam(param: String): Boolean = m.contains( munge(param) )
   }
-
-  
-  /** Checks if a parameter record is site meta-data. */
-  def isSiteMetaRec(rec: Array[String]): Boolean =
-    isNA(rec(StratumCol)) && isNA(rec(SpeciesCol))
-
-  /** Checks if a parameter record is stratum meta-data. */ 
-  def isStratumMetaRec(rec: Array[String]): Boolean = 
-    !isNA(rec(StratumCol)) && isNA(rec(SpeciesCol))
     
   
   /**
@@ -126,12 +108,9 @@ object ObjectFactory {
    * Creates a Surface object. 
    */
   def createSurface(params: ParamTable): Surface = {
-    
-    val metaRecs = params.filter( isSiteMetaRec )
-    
-    // create lookup with strict=false to ignore duplicate 'overlapping' 
+    // create lookup, allowing it to ignore duplicate 'overlapping' 
     // parameter labels
-    val lu = new ParamLookup(metaRecs, strict = false)
+    val lu = new ParamLookup(params.metaRecs, allowDuplicates = true)
     
     Surface(
       slope = lu.dval("slope"),
@@ -142,22 +121,17 @@ object ObjectFactory {
   }
   
   def createWeatherModel(params: ParamTable): WeatherModel = {
-    
-    val metaRecs = params.filter( isSiteMetaRec )
-    
-    // create lookup with strict=false to ignore duplicate 'overlapping' 
+    // create lookup, allowing it to ignore duplicate 'overlapping' 
     // parameter labels
-    val lu = new ParamLookup(metaRecs, strict = false)
+    val lu = new ParamLookup(params.metaRecs, allowDuplicates = true)
     
     ConstantWeatherModel(temperature = lu.dval("temperature"), windSpeed = lu.dval("windSpeed"))
   }
   
   def createSiteContext(params: ParamTable): SiteContext = {
-    val metaRecs = params.filter( isSiteMetaRec )
-
-    // create lookup with strict=false to ignore duplicate 'overlapping' 
+    // create lookup, allowing it to ignore duplicate 'overlapping' 
     // parameter labels
-    val lu = new ParamLookup(metaRecs, strict = false)
+    val lu = new ParamLookup(params.metaRecs, allowDuplicates = true)
     
     SiteContext(fireLineLength = lu.dval("fireLineLength"))
   }
@@ -172,8 +146,8 @@ object ObjectFactory {
    * Creates stratum overlaps.
    */
   def createStratumOverlaps(params: ParamTable): Seq[StratumOverlap] = {
-    val overlapRecs = params.filter(rec => isSiteMetaRec(rec) && munge(rec(ParamCol)).startsWith("overlap"))
-    overlapRecs.map( rec => createStratumOverlap(rec(ValueCol)) )
+    val overlapRecs = params.metaRecs.filter( rec => munge(rec.paramLabel) == "overlap" )
+    overlapRecs.map( rec => createStratumOverlap(rec.paramValue) )
   }
   
   /**
@@ -204,11 +178,9 @@ object ObjectFactory {
    * Creates strata from a parameter table.
    */
   def createStrata(params: ParamTable): Seq[Stratum] = {
-    val stratumRecs = params.filter( rec => !isNA(rec(StratumCol)) )
-    val stratumIds = stratumRecs.map( rec => rec(StratumCol) ).toSet
-    require(stratumIds.size > 0, "Parameters for one or more strata are required")
+    require(params.stratumIds.size > 0, "Parameters for one or more strata are required")
     
-    stratumIds.map(i => createStratum(params, i)).toSeq
+    params.stratumIds.map(id => createStratum(params, id)).toSeq
   }
   
   /**
@@ -216,16 +188,12 @@ object ObjectFactory {
    * stratum ID.
    */
   def createStratum(params: ParamTable, stratumId: String): Stratum = {
-    val recs = params.filter( rec => rec(StratumCol) == stratumId )
-    val (metaRecs, spRecs) = recs.partition( rec => isNA(rec(SpeciesCol)) )
+    val spp = (params.speciesIds(stratumId) map { id =>
+      val recs = params.speciesRecs(id)
+      createSpeciesComponent( asParamTable(recs) )
+    }).toSeq
 
-    val spp = spRecs.
-      groupBy( rec => rec(SpeciesCol) ).
-      values.
-      map( createSpeciesComponent(_) ).
-      toSeq
-
-    val lu = new ParamLookup( recs.filter( isStratumMetaRec(_) ) )
+    val lu = new ParamLookup( params.stratumMetaRecs(stratumId) )
     
     DefaultStratum(
         level = StratumLevel(lu("levelName")),
@@ -234,12 +202,12 @@ object ObjectFactory {
   }
     
   def createSpeciesComponent(params: ParamTable): SpeciesComponent = {
-    val lu = new ParamLookup(params)
+    val lu = new ParamLookup(params.recs)
     SpeciesComponent(species = createSpecies(lu), weighting = lu.dval("composition"))
   }
   
   def createSpecies(params: ParamTable): Species = 
-    createSpecies( new ParamLookup(params) )
+    createSpecies( new ParamLookup(params.recs) )
   
   def createSpecies(lu: ParamLookup): Species = {
     DefaultSpecies(
@@ -277,20 +245,6 @@ object ObjectFactory {
   def dopt(x: String): Option[Double] = 
     if (isNA(x)) None else Some(x.toDouble)
   
-  /**
-   * Tests if a string value should be treated as NA (missing).
-   */
-  def isNA(s: String, allowBlank: Boolean = true): Boolean = munge(s) match {
-    case "" => allowBlank
-    case "na" => true
-    case _ => false
-  }
-
-  /**
-   * Converts a string to lower case and removes all white-space characters.
-   */
-  def munge(term: String): String = term.toLowerCase.replaceAll("\\s+", "")
-
   
   /**
    * Provides case and white-space insensitive look-up of parameter
@@ -299,45 +253,50 @@ object ObjectFactory {
    * If strict is true, checks that there were no duplicate parameter labels
    * in the input table.
    */
-  class ParamLookup(tbl: ParamTable, strict: Boolean = true) {
-    val tableHasUnits = !tbl.isEmpty && tbl(0).isDefinedAt(UnitsCol)
+  class ParamLookup(tblRecs: IndexedSeq[ParamTableRec], allowDuplicates: Boolean = false) {
     
-    def getInputUnits(rec: Array[String]): Unit = {
-      val defaultUnits = ParamUnitsLookup(rec(ParamCol)).defaultInputUnits
-      
-      if (tableHasUnits) {
-        val unitAbbrev = rec(UnitsCol)
-        if (isNA(unitAbbrev)) defaultUnits
-        else Units.getUnit(unitAbbrev) 
+    // Filter input table to recognized parameters
+    val knownRecs = tblRecs filter ( rec => ParamUnitsLookup.isRecognizedParam( rec.paramLabel ) )
+    
+    case class LookupRec(label: String, inputUnits: Units.Unit, value: String, modelUnits: Units.Unit)
+
+    // For each of the supported input parameters, retrieve unit
+    // information by combining default units with any units provided
+    // by the caller, then create a Map for look-ups.
+    val lookup = {
+      val recognizedItems = knownRecs.map { rec =>
+        val pu = ParamUnitsLookup(rec.paramLabel)
+        
+        val inputUnits = 
+          if (isNA( rec.paramUnits )) pu.defaultInputUnits
+          else Units.getUnit( rec.paramUnits ) 
+              
+        LookupRec(pu.label, inputUnits, rec.paramValue, pu.modelUnits)  
       }
-      else defaultUnits
+      
+      Map() ++ recognizedItems.map { lurec => (munge(lurec.label) -> lurec) }
     }
+        
+    if (!allowDuplicates) 
+      require(lookup.size == knownRecs.size, "Duplicate parameter labels in input table") 
     
-    // Map of param -> (value, input units)
-    val m = tbl.map(rec => (munge(rec(ParamCol)) -> ParamValue(rec(ValueCol), getInputUnits(rec)))).toMap
-    
-    if (strict) require(m.size == tbl.size, "Duplicate parameter labels in input table") 
-    
-    /** Number of lookup parameters (may be less than nrow if strict == false). */
-    def nparams = m.size
-    
-    /** Looks up a parameter name and returns the corresponding string value. */
-    def apply(term: String): String = m( munge(term) ).value
+    /** 
+     * Looks up a parameter label and returns the corresponding string value. 
+     */
+    def apply(label: String): String = lookup( munge(label) ).value
 
     /**
      * Looks up the name of a numeric parameter and returns its value
      * as a Double, taking care of any required unit conversion. 
      */
     def dval(term: String): Double = {
-      val pv = m( munge(term) )
+      val lurec = lookup( munge(term) )
       Units.convert(
-          fromUnits = pv.units, 
-          fromValue = pv.value.toDouble, 
-          toUnits = ParamUnitsLookup(term).modelUnits)
+          fromUnits = lurec.inputUnits, 
+          fromValue = lurec.value.toDouble, 
+          toUnits = lurec.modelUnits)
     }
       
   }
 
-  case class ParamValue(value: String, units: Unit)
-  
 }
