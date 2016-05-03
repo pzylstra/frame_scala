@@ -7,6 +7,8 @@ import ffm.fire._
 import ffm.io.legacy._
 import ffm.runner.Runner
 import ffm.util.FileUtils
+import ffm.forest.Site
+import ffm.io.r.Database
 
 object BatchRunner {
   
@@ -26,13 +28,28 @@ object BatchRunner {
       val name = pf.getPath
       if (name.endsWith(paramExt)) {
         println(name)
-        loadAndRun(name)
+        loadAndRun(name, dump = true, database = "c:/michael/Rworkspaces/Phil/package/ffm_out.db")
       }
     }
   }
   
-  def loadAndRun(paramPath: String, outputDir: String = "c:/michael/coding/ffm/testing"): Unit = {  
-    val resultText = runAndFormat(paramPath)
+  def loadAndRun(paramPath: String, 
+      outputDir: String = "c:/michael/coding/ffm/testing", 
+      database: String = "",
+      dump: Boolean = false): Unit = {
+    
+    val site = loadParams(paramPath)
+    val res = Runner.run(site)
+
+    val resultText = ResultFormatter.format(res)
+    
+    if (dump) println(resultText)
+    
+    if (database != "") {
+      val db = Database.create(database, deleteIfExists = true)
+      db.insertResult(res)
+      db.close()
+    }
     
     val outPath = {
       import FileUtils._
@@ -46,7 +63,7 @@ object BatchRunner {
       FileUtils.withPrintWriter(outPath.get) { writer => writer.println(resultText) }
   }
   
-  def runAndFormat(paramPath: String): String = {
+  def loadParams(paramPath: String): Site = {
     val modelDef = ParamFileParser.readTextFormatFile(paramPath).get
 
     // get fallback value for dead leaf moisture from the surface 
@@ -60,8 +77,7 @@ object BatchRunner {
       case Failure(t) => throw t
     }
 
-    val result = Runner.run(site)
-    ResultFormatter.format(result)
+    site
   }
     
 }

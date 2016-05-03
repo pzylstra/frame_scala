@@ -9,6 +9,7 @@ import ffm.forest.SpeciesComponent
 import ffm.forest.StratumLevel
 import ffm.geometry._
 import ffm.numerics.Numerics
+import ffm.util.IntCounter
 
 class DefaultIgnitionPathModel extends IgnitionPathModel {
 
@@ -60,7 +61,7 @@ import IgnitionRunType._
       val PointLoop = new Breaks
       
       TimeStepLoop.breakable {
-        for (timeStep <- TimeSteps(from = 1)) {
+        for (timeStep <- IntCounter(from = 1, step = 1)) {
           // If this is a stratum path run, and we have ignition, adjust the wind speed
           // by the rate of flame progression
           val modifiedWindSpeed = {

@@ -9,7 +9,7 @@ import ffm.forest.VegetationWindModel
  * Aggregates results from separate runs of a fire model, with and without a canopy layer.
  */
 class DefaultFireModelResult(
-    site: Site, 
+    theSite: Site, 
     windModel: VegetationWindModel,
     run1: FireModelRunResult, 
     run2: FireModelRunResult) extends FireModelResult {
@@ -23,6 +23,8 @@ class DefaultFireModelResult(
   private val refRun =
     if (hasSecondRun) run2 else run1
 
+  val site: Site = theSite  
+    
   val stratumResults: IndexedSeq[StratumFlameSummary] = refRun.stratumOutcomes.map { outcome =>
     
     val opFS = outcome.selectFlameSeries { (fs1, fs2) =>

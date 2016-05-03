@@ -9,7 +9,7 @@ object SiteContextFactory {
   import FactoryItem._
   
   val items = List(
-    item("fire line length", "fireLineLength")
+    item("fireline length", "fireLineLength")
   )
   
   def create(modelDef: ModelDef): Try[SiteContext] = {

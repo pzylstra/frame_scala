@@ -53,7 +53,11 @@ lazy val io = (project in file("io")).
   settings(
     libraryDependencies ++= Seq(
       "org.scala-lang.modules" %% "scala-parser-combinators" % "1.0.4",
-      "com.github.tototoshi" %% "scala-csv" % "1.3.1"
+      "com.github.tototoshi" %% "scala-csv" % "1.3.1",
+      "org.tmatesoft.sqljet" % "sqljet" % "1.1.10"
+      // "org.scalikejdbc" %% "scalikejdbc" % "2.3.5",
+      // "org.xerial" % "sqlite-jdbc" % "3.7.2",
+      // "ch.qos.logback" % "logback-classic" % "[1.1,)"
     )
   )
 

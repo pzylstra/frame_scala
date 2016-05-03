@@ -23,7 +23,7 @@ class IgnitionPathSpec extends IgnitionPathTestBase with PropertyChecks {
   
   it should "return the correct max segment length" in {
     
-    forAll (distanceLists(minDist=0.0, maxDist=10.0)) { distances =>
+    forAll (distanceLists(minDist=0.1, maxDist=10.0)) { distances =>
     
       val expected = distances.max
       
@@ -73,7 +73,7 @@ class IgnitionPathSpec extends IgnitionPathTestBase with PropertyChecks {
   }
   
   it should "return correctly sort segments by length (descending) and time (ascending)" in {
-    forAll (distanceLists(minDist=0.0, maxDist=10.0, maxN=5)) { distances =>
+    forAll (distanceLists(minDist=0.1, maxDist=10.0, maxN=5)) { distances =>
       val n = distances.size
       
       // duplicate a random number of distances so we can check 
@@ -136,7 +136,7 @@ class IgnitionPathSpec extends IgnitionPathTestBase with PropertyChecks {
   
   it should "return the correct basic rate of spread for multiple segments" in {
     
-    forAll (distanceLists(minDist=0.0, maxDist=5.0)) { distances => 
+    forAll (distanceLists(minDist=0.1, maxDist=5.0)) { distances => 
       
       // First calculate expected ROS value from the distances (which will relate to segment Xs)      
       val rates = distances map { _ / ModelSettings.ComputationTimeInterval }
