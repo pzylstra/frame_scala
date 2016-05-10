@@ -61,9 +61,7 @@ class DefaultFireModelRunResultBuilder(site: Site) {
    * The flame series with the largest flame for each stratum.
    */
   def largestFlameSeriesPerStratum(): IndexedSeq[StratumFlameSeries] =
-    result.stratumOutcomes.flatMap { outcome =>
-      outcome.selectFlameSeries((fs1, fs2) => if (fs1.maxFlameLength > fs2.maxFlameLength) fs1 else fs2)
-    }
+    result.stratumOutcomes.flatMap { outcome => StratumOutcome.selectMaxFlameSeries(outcome, _.maxFlameLength) }
 
   /**
    * Return the result object in its current state.

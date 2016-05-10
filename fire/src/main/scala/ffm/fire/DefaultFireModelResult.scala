@@ -27,9 +27,7 @@ class DefaultFireModelResult(
     
   val stratumResults: IndexedSeq[StratumFlameSummary] = refRun.stratumOutcomes.map { outcome =>
     
-    val opFS = outcome.selectFlameSeries { (fs1, fs2) =>
-      if (fs1.cappedMaxFlameLength > fs2.cappedMaxFlameLength) fs1 else fs2
-    }
+    val opFS = StratumOutcome.selectMaxFlameSeries(outcome, _.cappedMaxFlameLength)
 
     val level = outcome.stratum.level
 

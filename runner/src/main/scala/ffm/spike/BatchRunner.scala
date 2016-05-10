@@ -28,7 +28,7 @@ object BatchRunner {
       val name = pf.getPath
       if (name.endsWith(paramExt)) {
         println(name)
-        loadAndRun(name, dump = true, database = "c:/michael/Rworkspaces/Phil/package/ffm_out.db")
+        loadAndRun(name, dump = true, database = "") //"c:/michael/Rworkspaces/Phil/package/ffm_out.db")
       }
     }
   }
@@ -46,9 +46,14 @@ object BatchRunner {
     if (dump) println(resultText)
     
     if (database != "") {
-      val db = Database.create(database, deleteIfExists = true)
-      db.insertResult(res)
-      db.close()
+      Database.create(database, deleteIfExists = true, useTransactions = false) match {
+        case Some(db) =>
+          db.insertResult(res)
+          db.close()
+          
+        case None =>
+          println("Could create database")
+      }
     }
     
     val outPath = {

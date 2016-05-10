@@ -59,23 +59,6 @@ object DefaultStratumOutcome {
       val plantPaths: IndexedSeq[IgnitionPath],
       val plantFlameSeries: Option[StratumFlameSeries],
       val stratumPaths: IndexedSeq[IgnitionPath],
-      val stratumFlameSeries: Option[StratumFlameSeries]) extends StratumOutcome {
-
-    def selectFlameSeries(f: (StratumFlameSeries, StratumFlameSeries) => StratumFlameSeries): Option[StratumFlameSeries] = {
-      plantFlameSeries match {
-        case Some(plantFS) =>
-          stratumFlameSeries match {
-            case Some(stratumFS) =>
-              Some(f(plantFS, stratumFS))
-
-            case None =>
-              Some(plantFS)
-          }
-
-        // no plant or stratum flames
-        case None => None
-      }
-    }
-  }
+      val stratumFlameSeries: Option[StratumFlameSeries]) extends StratumOutcome
 }
   

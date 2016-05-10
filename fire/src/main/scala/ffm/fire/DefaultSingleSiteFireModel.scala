@@ -221,10 +221,7 @@ class DefaultSingleSiteFireModel(
           // Get the flame series with largest max flame length.
           // (it is safe to call `get` on the Option result since we must
           // have at least plant flames)
-          val flameSeries = outcome.selectFlameSeries { (fs1, fs2) =>
-            if (fs1.maxFlameLength > fs2.maxFlameLength) fs1
-            else fs2
-          }.get
+          val flameSeries = ( StratumOutcome.selectMaxFlameSeries(outcome, _.maxFlameLength) ).get
 
           val nextPHFlame = createPreHeatingFlame(
             flameSeries,
