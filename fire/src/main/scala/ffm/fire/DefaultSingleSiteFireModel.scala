@@ -400,20 +400,10 @@ class DefaultSingleSiteFireModel(
      * Creates a proxy for a given species to use in a stratum flame run.
      */
     def createProxyStratumSpecies(sp: Species, crown: CrownPoly, stratum: Stratum): Species = {
-      DefaultSpecies(name = sp.name,
-        crown = crown,
-        liveLeafMoisture = sp.liveLeafMoisture,
-        deadLeafMoisture = sp.deadLeafMoisture,
-        propDead = sp.propDead,
-        ignitionTemp = sp.ignitionTemperature,
-        leafForm = sp.leafForm,
-        leafThickness = sp.leafThickness,
-        leafWidth = sp.leafWidth,
-        leafLength = sp.leafLength,
-        leafSeparation = sp.leafSeparation,
-        stemOrder = sp.stemOrder,
-        clumpDiameter = sp.crown.width,
-        clumpSeparation = math.max(sp.clumpSeparation, stratum.modelPlantSeparation - stratum.averageWidth))
+      DefaultSpecies(
+          sp, crown, 
+          newClumpDiam = sp.crown.width, 
+          newClumpSep = math.max(sp.clumpSeparation, stratum.modelPlantSeparation - stratum.averageWidth))
     }
 
     /**

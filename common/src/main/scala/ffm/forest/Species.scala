@@ -3,6 +3,7 @@ package ffm.forest
 import ffm.geometry.CrownPoly
 
 trait Species {
+  def id: Long
   def name: String
   
   def crown: CrownPoly

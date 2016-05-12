@@ -14,4 +14,9 @@ trait SurfaceOutcome {
   
   /** Summary attributes for flames. */
   def flameSummary: StratumFlameSummary
+  
+  /**
+   * Overall surface fire rate of spread (m/s).
+   */
+  def ros: Double
 }

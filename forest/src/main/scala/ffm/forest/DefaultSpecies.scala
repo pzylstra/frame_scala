@@ -4,12 +4,15 @@ import ffm.geometry.CrownPoly
 import ffm.numerics.Numerics
 import ffm.util.Options
 import ffm.util.ArgUtils
+import ffm.util.IntCounter
 
 /**
  * Companion object with a factory method to create Species instances
  * and check argument values.
  */
 object DefaultSpecies {
+  
+  private val counter = IntCounter(from = 1)
   
   /**
    * Creates a new Species object.
@@ -50,12 +53,44 @@ object DefaultSpecies {
     isNotNegative("clumpDiameter", clumpDiameter)
     isNotNegative("clumpSeparation", clumpSeparation)
 
-    new PlantSpecies(name.trim(), crown,
+    // Allocate an integer ID to this species
+    val id = counter.next()
+    
+    new PlantSpecies(
+      id,
+      name.trim(), 
+      crown,
       liveLeafMoisture, deadLeafMoisture, propDead,
       ignitionTemp,
       leafForm, leafThickness, leafWidth, leafLength, leafSeparation,
       stemOrder, clumpDiameter, clumpSeparation)
   }
+  
+  /**
+   * Creates a new Species object derived from an existing object but
+   * with a new crown.
+   * 
+   * The integer ID of the new species will be equal to that of the
+   * base species.  This allows proxy stratum species to be paired with
+   * their underlying plant species.
+   * 
+   * @param sp the base species
+   * @param newCrown crown polygon for the derived species
+   * @param newClumpDiam clump diameter for the derived species
+   * @param newClumpSep clump separation for the derived species
+   */
+  def apply(sp: Species, newCrown: CrownPoly, newClumpDiam: Double, newClumpSep: Double): Species =
+    new PlantSpecies(
+        sp.id,
+        sp.name,
+        newCrown,
+        sp.liveLeafMoisture, sp.deadLeafMoisture, sp.propDead,
+        sp.ignitionTemperature,
+        sp.leafForm, sp.leafThickness, sp.leafWidth, sp.leafLength, sp.leafSeparation,
+        sp.stemOrder, 
+        newClumpDiam, newClumpSep)
+        
+        
 
   /**
    * The default class for a plant species. 
@@ -64,6 +99,7 @@ object DefaultSpecies {
    * Species object apply method which does sanity checking of arguments.
    */
   private class PlantSpecies(
+    val id: Long,
     val name: String,
     val crown: CrownPoly,
     val liveLeafMoisture: Double,

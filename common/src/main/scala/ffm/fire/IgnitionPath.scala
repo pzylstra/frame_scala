@@ -25,7 +25,7 @@ trait IgnitionPath {
 
   /** Time series of ignited segments. */
   def segments: IndexedSeq[IgnitedSegment]
-
+  
   /** Checks if any data (pre-ignition data or ignited segments) exist. */
   def hasData: Boolean =
     !(preIgnitionData.isEmpty && segments.isEmpty)
@@ -83,6 +83,23 @@ trait IgnitionPath {
   def timeStepForMaxLength =
     if (hasIgnition) segmentsByLengthAndTime.head.timeStep 
     else throw new UnsupportedOperationException("Ignition did not occur")
+    
+  /** 
+   * Maximum x ordinate of any part of a any segment in the path.
+   */
+  def maxX: Option[Double] =
+    if (hasIgnition) {
+      val xs = segments.map (seg => math.max(seg.start.x, seg.end.x))
+      Some( xs.max )  
+    }
+    else None
+    
+  /**
+   * Maximum horizontal run.
+   */
+  def maxHorizontalRun: Option[Double] =
+    if (hasIgnition) Some( maxX.get - initialPoint.x )
+    else None
 
   /**
    * Finds the maximum recorded pre-ignition drying temperature.
@@ -104,5 +121,19 @@ trait IgnitionPath {
    * Implementing classes must provide this method.
    */
   def basicROS: Double
+  
+  /**
+   * Rate of spread for a given segment.
+   * 
+   * If segIndex is beyond the last segment, a value of 0 is returned.
+   * 
+   * @param segIndex index (from 0) of the segment.
+   */
+  def ros(segIndex: Int): Double
+  
+  /**
+   * Tests if this path represents a spreading fire.
+   */
+  def isSpreadingFire: Boolean
 }
 

@@ -38,6 +38,8 @@ class DefaultSurfaceOutcome(site: Site, windModel: VegetationWindModel, includeC
       flameLength = len,
       flameAngle = angle,
       flameHeight = len * math.sin(angle) - (len * math.cos(angle)) * math.tan(site.surface.slope) )
+      
+  val ros: Double = fireAttr.ros(windSpeed)
 }
 
 object DefaultSurfaceOutcome {
@@ -48,5 +50,6 @@ object DefaultSurfaceOutcome {
     val windSpeed = 0.0
     val flames = IndexedSeq.empty[Flame]
     val flameSummary = StratumFlameSummary(StratumLevel.Surface, 0.0, 0.0, 0.0)
+    val ros = 0.0
   }
 }

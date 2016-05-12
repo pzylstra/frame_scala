@@ -28,4 +28,17 @@ class DefaultIgnitionPath(
       if (spreaders.isEmpty) 0.0
       else Stats.mean(spreaders)
     }
+  
+   def ros(segIndex: Int): Double = {
+     if (segIndex >= segments.size) 0.0
+     else if (segIndex == 0) (segments(0).end.x - segments(0).start.x) / ModelSettings.ComputationTimeInterval
+     else (segments(segIndex).end.x - segments(segIndex - 1).end.x) / ModelSettings.ComputationTimeInterval
+   }
+   
+   val isSpreadingFire: Boolean = {
+     // flag segments which have at least min rate of spread required
+     val flags = (0 until segments.size) map (i => if (ros(i) >= ModelSettings.MinRateForStratumSpread) 1 else 0)
+     
+     flags.sum >= ModelSettings.MinTimeStepsForStratumSpread
+   }
  }
