@@ -9,13 +9,14 @@ import ffm.runner.Runner
 import ffm.util.FileUtils
 import ffm.forest.Site
 import ffm.io.r.Database
+import ffm.util.Units
 
 object BatchRunner {
   
   val paramDir = "c:/michael/coding/ffm/params"
   val paramExt = "txt"
   
-  val paramFilesSubset = List("1a.txt")
+  val paramFilesSubset = List("2a.txt")
   
   def main(args: Array[String]): Unit = {
     val allFiles = (new java.io.File(paramDir)).listFiles.filter(_.isFile).toList
@@ -116,30 +117,35 @@ object ResultFormatter {
     val buf = new StringBuilder
     val add = adder(buf)
     
-    fmr.stratumResults foreach { res => 
-      add( s"${res.level}" )
-      add( f"  flame length: ${res.flameLength}%.2f" )
-      add( f"  flame angle:  ${res.flameAngle}%.2f" )
-      add( f"  flame height:  ${res.flameHeight}%.2f" )
-    }
+    add( formatRunResult(fmr.run1) )
     
-    val run1 = fmr.runResults(0)
-    add( formatRunResult(run1) )
-    
-    if (fmr.runResults.size > 1) {
-      val run2 = fmr.runResults(1)
-      add( "\n\n=== Second run ===\n\n" )
-      add( formatRunResult(run2) )
-    }
+    add( "\n\n=== Second run ===\n\n" )
+    add( formatRunResult(fmr.run2) )
     
     buf.toString
   }
     
   def formatRunResult(runResult: FireModelRunResult): String = {
     val buf = new StringBuilder    
+    val add = adder(buf)
+    
     buf ++= formatSurfaceParams(runResult.surfaceOutcome) + '\n'
     
-    runResult.stratumOutcomes foreach { outcome => buf ++= formatOutcome(outcome) + '\n' }
+    runResult.flameSummaries foreach { case(level, fsum) =>
+      add( s"level" )
+      add( f"  flame length: ${fsum.flameLength}%.2f" )
+      add( f"  flame angle:  ${fsum.flameAngle}%.2f" )
+      add( f"  flame height:  ${fsum.flameHeight}%.2f" )
+    }
+    
+    add("\nRates of spread")
+    runResult.ratesOfSpread foreach { case(level, ros) =>
+      val kph = Units.convert("m/s", ros, "km/h")
+      add(f"$level : ${ros}%.2f m/s  ${kph}%.2f km/h")
+    }
+    add("")
+
+    runResult.pathsAndFlames foreach { case (level, pnf) => buf ++= formatPNF(pnf) + '\n' }
     
     buf.toString
   }
@@ -157,12 +163,12 @@ object ResultFormatter {
     buf.toString
   }
 
-  def formatOutcome(outcome: StratumOutcome): String = {
+  def formatPNF(pnf: StratumPathsFlames): String = {
     val buf = new StringBuilder
     val add = adder(buf)
    
-    outcome.plantPaths foreach (path => add(formatPath(path)))
-    outcome.stratumPaths foreach (path => add(formatPath(path)))
+    pnf.plantPaths foreach (path => add(formatPath(path)))
+    pnf.stratumPaths foreach (path => add(formatPath(path)))
     
     buf.toString
   }

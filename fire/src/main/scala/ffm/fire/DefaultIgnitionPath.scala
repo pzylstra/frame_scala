@@ -36,9 +36,11 @@ class DefaultIgnitionPath(
    }
    
    val isSpreadingFire: Boolean = {
-     // flag segments which have at least min rate of spread required
-     val flags = (0 until segments.size) map (i => if (ros(i) >= ModelSettings.MinRateForStratumSpread) 1 else 0)
-     
-     flags.sum >= ModelSettings.MinTimeStepsForStratumSpread
+     if (!hasIgnition) false
+     else {
+       // count segments which have at least min rate of spread required
+       val n = (0 until segments.size) count (i => ros(i) >= ModelSettings.MinRateForStratumSpread)
+       n >= ModelSettings.MinTimeStepsForStratumSpread
+     }
    }
  }

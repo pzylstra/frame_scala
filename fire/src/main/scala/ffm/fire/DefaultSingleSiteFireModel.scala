@@ -25,9 +25,9 @@ object DefaultSingleSiteFireModelRunner {
         site, 
         includeCanopy = true)
 
-    val fireSpreadInCanopy = run1.stratumOutcomes exists { outcome =>
-      outcome.stratum.level == StratumLevel.Canopy &&
-        outcome.stratumFlameSeries.isDefined
+    val fireSpreadInCanopy = run1.pathsAndFlames exists { case (level, pnf) =>
+      level == StratumLevel.Canopy &&
+      pnf.stratumFlameSeries.isDefined
     }
 
     // If there was a canopy stratum with fire spread between crowns, re-run with
@@ -39,10 +39,10 @@ object DefaultSingleSiteFireModelRunner {
             site, 
             includeCanopy = false)
       else
-        (new DefaultFireModelRunResultBuilder(site)).toResult()
+        DefaultFireModelRunResult.empty(site, false)
     
     // Return the aggregate result
-    new DefaultFireModelResult(site, windModel, run1, run2)
+    new DefaultFireModelResult(site, run1, run2)
   }
 }
 
@@ -106,7 +106,7 @@ class DefaultSingleSiteFireModel(
       endTime = surfaceFireAttr.flameResidenceTime)
 
     def run(): FireModelRunResult = {
-      val resultBuilder = new DefaultFireModelRunResultBuilder(site)
+      val resultBuilder = new DefaultFireModelRunResultBuilder(site, includeCanopy)
       resultBuilder.addSurfaceOutcome(surfaceOutcome)
 
       processStrata(
@@ -137,7 +137,7 @@ class DefaultSingleSiteFireModel(
           flameConnections)
 
         resultBuilder.addCombinedFlames(allStrataFlames)
-        resultBuilder.toResult()
+        resultBuilder.toResult(windModel, includeCanopy)
 
       } else {
         /*
@@ -167,8 +167,8 @@ class DefaultSingleSiteFireModel(
            * and process the remaining strata. 
            */
 
-          val outcome = DefaultStratumOutcome.nonIgnitionOutcome(stratum, plantRunResult.paths)
-          resultBuilder.addStratumOutcome(outcome)
+          val pnf = DefaultStratumPathsFlames.nonIgnitionOutcome(stratum, plantRunResult.paths)
+          resultBuilder.addStratumPathsFlames(pnf)
 
           processStrata(
             strata.tail,
@@ -197,7 +197,7 @@ class DefaultSingleSiteFireModel(
 
           val stratumFlames = getStratumFlames(stratumRunResult, stratumWindSpeed)
 
-          val outcome = DefaultStratumOutcome.ignitionOutcome(
+          val pnf = DefaultStratumPathsFlames.ignitionOutcome(
             stratum,
             plantRunResult.paths,
             plantFlames,
@@ -221,7 +221,7 @@ class DefaultSingleSiteFireModel(
           // Get the flame series with largest max flame length.
           // (it is safe to call `get` on the Option result since we must
           // have at least plant flames)
-          val flameSeries = ( StratumOutcome.selectMaxFlameSeries(outcome, _.maxFlameLength) ).get
+          val flameSeries = ( StratumPathsFlames.selectMaxFlameSeries(pnf, _.maxFlameLength) ).get
 
           val nextPHFlame = createPreHeatingFlame(
             flameSeries,
@@ -236,7 +236,7 @@ class DefaultSingleSiteFireModel(
 
           // Add the latest stratum outcome and go to the next recursion.
           //
-          resultBuilder.addStratumOutcome(outcome)
+          resultBuilder.addStratumPathsFlames(pnf)
 
           processStrata(
             strata.tail,
@@ -451,21 +451,23 @@ class DefaultSingleSiteFireModel(
      */
     def createIncidentFlames(
       stratum: Stratum,
-      allFlameSeries: IndexedSeq[StratumFlameSeries],
+      flameSeriesByLevel: Map[StratumLevel, StratumFlameSeries],
       flameConnections: FlameConnections): IndexedSeq[Flame] = {
 
-      if (allFlameSeries.isEmpty) surfaceOutcome.flames
+      if (flameSeriesByLevel.isEmpty) surfaceOutcome.flames
       else {
         // Find lower strata with flames and a connection to the current stratum
         val lowerStrata =
           for {
             otherStratum <- site.vegetation.strata
+            
             if otherStratum < stratum &&
-              allFlameSeries.exists(fs => fs.stratum.level == otherStratum.level) &&
+              flameSeriesByLevel.contains(otherStratum.level) &&
               flameConnections.isConnected(lower = otherStratum, upper = stratum)
+          
           } yield otherStratum
 
-        combineStrataFlames(lowerStrata, allFlameSeries)
+        combineStrataFlames(lowerStrata, flameSeriesByLevel)
       }
     }
 
@@ -477,34 +479,29 @@ class DefaultSingleSiteFireModel(
      * vertical association) are included.
      */
     def combinedFlamesForAllStrata(
-      allFlameSeries: IndexedSeq[StratumFlameSeries],
+      flameSeriesByLevel: Map[StratumLevel, StratumFlameSeries],
       flameConnections: FlameConnections): IndexedSeq[Flame] = {
 
-      if (allFlameSeries.isEmpty) surfaceOutcome.flames
+      if (flameSeriesByLevel.isEmpty) surfaceOutcome.flames
       else {
         val canopy = site.vegetation.strataByLevel(StratumLevel.Canopy)
         val strataConnectedToCanopy =
           for {
             s <- site.vegetation.strata
-            if stratumLevelHasFlames(s.level, allFlameSeries) &&
-              (s.level == StratumLevel.Canopy || flameConnections.isConnected(lower = s, upper = canopy))
+            fs <- flameSeriesByLevel.get(s.level)
+            if (s.level == StratumLevel.Canopy || flameConnections.isConnected(lower = s, upper = canopy))
           } yield s
 
-        combineStrataFlames(strataConnectedToCanopy, allFlameSeries)
+        combineStrataFlames(strataConnectedToCanopy, flameSeriesByLevel)
       }
     }
-
-    def stratumLevelHasFlames(level: StratumLevel, allFlameSeries: IndexedSeq[StratumFlameSeries]): Boolean =
-      allFlameSeries exists (fs => fs.stratum.level == level)
 
     /**
      * Derives combined flames from the given strata.
      */
     def combineStrataFlames(
       strata: IndexedSeq[Stratum],
-      allFlameSeries: IndexedSeq[StratumFlameSeries]): IndexedSeq[Flame] = {
-
-      val flameSeriesByLevel = Map() ++ (allFlameSeries map (fs => (fs.stratum.level, fs)))
+      flameSeriesByLevel: Map[StratumLevel, StratumFlameSeries]): IndexedSeq[Flame] = {
 
       // Calculate a flame-weighted wind speed
       val initLen = surfaceOutcome.flames.head.flameLength
@@ -542,20 +539,20 @@ class DefaultSingleSiteFireModel(
      * Calculates canopy heating distance given the canopy stratum and the collection
      * of flame series for lower strata.
      */
-    def calculateCanopyHeatingDistance(canopyStratum: Stratum, allFlameSeries: IndexedSeq[StratumFlameSeries]): Double = {
+    def calculateCanopyHeatingDistance(canopyStratum: Stratum, flameSeriesByLevel: Map[StratumLevel, StratumFlameSeries]): Double = {
 
       require(canopyStratum.level == StratumLevel.Canopy) // just in case
 
       // Check that we haven't somehow got a flame series for the canopy already
-      require(!allFlameSeries.exists(_.stratum.level == StratumLevel.Canopy), "Flame series already created for canopy stratum")
+      require(!flameSeriesByLevel.contains(StratumLevel.Canopy), "Flame series already created for canopy stratum")
 
       val canopyLine = Line(Coord(0.0, canopyStratum.averageBottom), site.surface.slope)
 
       /*
-     * Recursive helper to process the flame series sequence.
-     * Returns the calculated canopy heating distance when finished.
-     */
-      def iter(fss: IndexedSeq[StratumFlameSeries], curDist: Double): Double = {
+       * Recursive helper to process the flame series sequence.
+       * Returns the calculated canopy heating distance when finished.
+       */
+      def iter(fss: Iterable[StratumFlameSeries], curDist: Double): Double = {
         if (fss.isEmpty) curDist
         else {
           val flame = fss.head.longestFlame
@@ -581,7 +578,7 @@ class DefaultSingleSiteFireModel(
         }
       }
 
-      iter(allFlameSeries, 0.0)
+      iter(flameSeriesByLevel.values, 0.0)
     }
 
   }

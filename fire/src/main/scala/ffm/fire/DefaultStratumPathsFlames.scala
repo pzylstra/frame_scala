@@ -3,10 +3,10 @@ package ffm.fire
 import ffm.forest.Stratum
 
 /**
- * Default companion object for the StratumOutcome trait with methods to create
+ * Default companion object for the [[StratumPathsFlames]] trait with methods to create
  * data objects for ignition and non-ignition outcomes.
  */
-object DefaultStratumOutcome {
+object DefaultStratumPathsFlames {
 
   /**
    * Create a StratumOutcome object for results where ignition occurred 
@@ -15,7 +15,7 @@ object DefaultStratumOutcome {
                       plantPaths: IndexedSeq[IgnitionPath],
                       plantFlames: IndexedSeq[Flame],
                       stratumPaths: IndexedSeq[IgnitionPath],
-                      stratumFlames: IndexedSeq[Flame]): StratumOutcome = {
+                      stratumFlames: IndexedSeq[Flame]): StratumPathsFlames = {
 
     require(isIgnition(plantPaths), "Expected plant ignition data")
 
@@ -32,7 +32,7 @@ object DefaultStratumOutcome {
    * Create a StratumOutcome object for results where ignition did not occur.
    */
   def nonIgnitionOutcome(stratum: Stratum,
-                         plantPaths: IndexedSeq[IgnitionPath]): StratumOutcome = {
+                         plantPaths: IndexedSeq[IgnitionPath]): StratumPathsFlames = {
 
     require(plantPaths.nonEmpty,
       "Expected one or more plant paths with pre-ignition data")
@@ -59,6 +59,6 @@ object DefaultStratumOutcome {
       val plantPaths: IndexedSeq[IgnitionPath],
       val plantFlameSeries: Option[StratumFlameSeries],
       val stratumPaths: IndexedSeq[IgnitionPath],
-      val stratumFlameSeries: Option[StratumFlameSeries]) extends StratumOutcome
+      val stratumFlameSeries: Option[StratumFlameSeries]) extends StratumPathsFlames
 }
   

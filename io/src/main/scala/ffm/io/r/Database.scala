@@ -8,11 +8,13 @@ import org.tmatesoft.sqljet.core.table.SqlJetDb
 import ffm.fire.FireModelResult
 import ffm.fire.IgnitionPath
 import ffm.fire.StratumFlameSummary
-import ffm.fire.StratumOutcome
 import ffm.fire.SurfaceOutcome
 import ffm.forest.Site
 import ffm.forest.StratumLevel
 import ffm.util.Counter
+import ffm.fire.StratumPathsFlames
+import ffm.fire.FireModelRunResult
+import ffm.fire.StratumPathsFlames
 
 /**
  * Manages writing of results to a SQLite database.
@@ -82,13 +84,9 @@ class Database (val base: SqlJetDb, val useTransactions: Boolean) {
     
     /** Inserts the result which was passed to the Session constructor. */
     def insert(): Boolean = {
-      insertSiteData()
-      insertLevels()
-      insertStratumResults(res)
+      insertSiteData() &&
+      insertLevels() &&
       insertRunResults(res)
-      
-      // TODO: set this flag based on success/failure of db transactions
-      true
     }
     
     /** Inserts site meta-data into the Sites table. */
@@ -111,37 +109,37 @@ class Database (val base: SqlJetDb, val useTransactions: Boolean) {
       }
     }
     
-    /** Inserts overall summary results into the StratumResults table. */
-    def insertStratumResults(res: FireModelResult): Boolean = {
-      writer { 
-        val tbl = base.getTable(TableStratumResults.name)
-        for (sr <- res.stratumResults) {
-          val rec = TableStratumResults.Rec(repId, sr)
-          TableStratumResults.inserter(tbl, rec)
-        }
-      }
-    }
-
-    /** Inserts results for each ignition run (either 1 or 2). */
+    /** Inserts results for ignition runs. */
     def insertRunResults(res: FireModelResult): Boolean = {
-      isAllTrue { 
-        res.runResults.zipWithIndex map { case (runres, i) =>
-          val runId = i + 1L  
-          insertSurfaceResult(runres.surfaceOutcome, runId)
-          insertStratumOutcomes(runres.stratumOutcomes, runId)
-        }
+      insertRunResult(res.run1, 1L) && insertRunResult(res.run2, 2L)
+    }
+      
+    /** Inserts results for an individual ignition run. */
+    def insertRunResult(runres: FireModelRunResult, runIndex: Long): Boolean = {
+      insertRunMetadata(runIndex, runres)
+      insertSurfaceResult(runIndex, runres)
+      insertStratumPathsFlames(runIndex, runres)
+      insertFlameSummaries(runIndex, runres)
+    }
+    
+    def insertRunMetadata(runIndex: Long, runres: FireModelRunResult): Boolean = {
+      writer {
+        val tbl = base.getTable(TableRuns.name)
+        val rec = TableRuns.Rec(repId, runIndex, runres.canopyIncluded)
+        TableRuns.inserter(tbl, rec)
       }
     }
     
     /**
      * Inserts results for surface flames and wind.
      * 
-     * @param runIndex ignitino run identifier: either 1 or 2.
+     * @param runIndex ignition run identifier: either 1 or 2.
+     * @param runres the run result object
      */
-    def insertSurfaceResult(surf: SurfaceOutcome, runIndex: Long): Boolean = {
+    def insertSurfaceResult(runIndex: Long, runres: FireModelRunResult): Boolean = {
       writer {  
         val tbl = base.getTable(TableSurfaceResults.name)
-        val rec = TableSurfaceResults.Rec(repId, runIndex, surf)
+        val rec = TableSurfaceResults.Rec(repId, runIndex, runres.surfaceOutcome)
         TableSurfaceResults.inserter(tbl, rec)
       }
     }
@@ -150,25 +148,43 @@ class Database (val base: SqlJetDb, val useTransactions: Boolean) {
      * Inserts results for each stratum in an ignition run.
      * 
      * @param runIndex ignition run identifier: either 1 or 2.
-     * @param souts sequences of [[ffm.fire.StratumOutcome]] objects.
+     * @param runres the run result object
      */
-    def insertStratumOutcomes(souts: IndexedSeq[StratumOutcome], runIndex: Long): Boolean = {
+    def insertStratumPathsFlames(runIndex: Long, runres: FireModelRunResult): Boolean = {
       writer { 
         val tbl = base.getTable(TableIgnitionPaths.name)
-        souts foreach { sout =>
-          val rec = TableIgnitionPaths.Rec(repId, runIndex, sout)
+        runres.pathsAndFlames.values foreach { pnf =>
+          val rec = TableIgnitionPaths.Rec(repId, runIndex, pnf)
           TableIgnitionPaths.inserter(tbl, rec)
         }
       }
     }
-
-    /** 
-     *  Checks if a sequence of logical values are all true.
-     */
-    def isAllTrue(bs: Seq[Boolean], resultIfEmpty: Boolean = false): Boolean =
-      if (bs.isEmpty) resultIfEmpty
-      else bs.reduce(_ && _)
     
+    /**
+     * Inserts the flame summary for each stratum in an ignition run.
+     * 
+     * @param runIndex ignition run identifier: either 1 or 2.
+     * @param runres the run result object
+     */
+    def insertFlameSummaries(runIndex: Long, runres: FireModelRunResult): Boolean = {
+      writer {
+        val tbl = base.getTable(TableFlameSummaries.name)
+        runres.flameSummaries.values foreach { fsum =>
+          val rec = TableFlameSummaries.Rec(repId, runIndex, fsum)
+          TableFlameSummaries.inserter(tbl, rec)
+        }
+      }
+    }
+    
+    def insertROS(runIndex: Long, runres: FireModelRunResult): Boolean = {
+      writer {
+        val tbl = base.getTable(TableROS.name)
+        runres.ratesOfSpread foreach { case (level, ros) =>
+          val rec = TableROS.Rec(repId, runIndex, level, ros)
+          TableROS.inserter(tbl, rec)
+        }
+      }
+    }
   }
 }
 
@@ -222,10 +238,12 @@ object Database {
       db.getOptions.setUserVersion(1)
 
       db.createTable(TableSites.createSQL)
+      db.createTable(TableRuns.createSQL)
       db.createTable(TableStrata.createSQL)
-      db.createTable(TableStratumResults.createSQL)
+      db.createTable(TableFlameSummaries.createSQL)
       db.createTable(TableSurfaceResults.createSQL)
       db.createTable(TableIgnitionPaths.createSQL)
+      db.createTable(TableROS.createSQL)
       db.commit()
       
       new Database(db, useTransactions)
@@ -328,6 +346,10 @@ sealed trait Table {
   
   /** Wraps a Double value as an AnyRef as required by SqlJet methods. */
   def &(x: Double) = x.asInstanceOf[AnyRef]
+  
+  /** Wraps a Boolean value as an AnyRef as required by SqlJet methods. */
+  def &(x: Boolean) = x.asInstanceOf[AnyRef]
+
 }
 
 
@@ -368,6 +390,26 @@ object TableSites extends Table {
 
 
 /////////////////////////////////////////////////////////////////////////////
+object TableRuns extends Table {
+  val name = "Runs"
+
+  val createSQL = """
+      CREATE TABLE Strata (
+      repId INT NOT NULL,
+      runIndex INT NOT NULL, 
+      canopyIncluded BOOLEAN,
+      PRIMARY KEY(repId, level))"""
+
+  case class Rec(repId: Long, runIndex: Long, canopyIncluded: Boolean)
+  type Record = Rec
+
+  def inserter(tbl: ISqlJetTable, rec: Rec): Unit = {
+    tbl.insert(&(rec.repId), &(rec.runIndex), &(rec.canopyIncluded))
+  }
+}
+
+
+/////////////////////////////////////////////////////////////////////////////
 object TableStrata extends Table {
   val name = "Strata"
 
@@ -388,24 +430,26 @@ object TableStrata extends Table {
 }
 
 /////////////////////////////////////////////////////////////////////////////
-object TableStratumResults extends Table {
-  val name = "StratumResults"
+object TableFlameSummaries extends Table {
+  val name = "FlameSummaries"
 
   val createSQL = """
       CREATE TABLE StratumResults(
       repId INT NOT NULL,
+      runIndex INT NOT NULL,
       level TEXT NOT NULL,
       flameLength REAL,
       flameAngle REAL,
       flameHeight REAL,
-      PRIMARY KEY(repId, level))"""
+      PRIMARY KEY(repId, runIndex, level))"""
 
-  case class Rec(repId: Long, flameSummary: StratumFlameSummary)
+  case class Rec(repId: Long, runIndex: Long, flameSummary: StratumFlameSummary)
   type Record = Rec
 
   def inserter(tbl: ISqlJetTable, rec: Rec): Unit =
     tbl.insert(
       &(rec.repId),
+      &(rec.runIndex),
       rec.flameSummary.level.toString,
       &(rec.flameSummary.flameLength),
       &(rec.flameSummary.flameAngle),
@@ -456,12 +500,14 @@ object TableIgnitionPaths extends Table {
         y1 REAL,
         length REAL)"""
 
-  case class Rec(repId: Long, runIndex: Long, so: StratumOutcome)
+  case class Rec(repId: Long, runIndex: Long, pathsFlames: StratumPathsFlames)
   type Record = Rec
 
   def inserter(tbl: ISqlJetTable, rec: Rec): Unit = {
-    worker("plant", rec.so.plantPaths)
-    worker("stratum", rec.so.stratumPaths)
+    val level = rec.pathsFlames.stratum.level
+
+    worker("plant", rec.pathsFlames.plantPaths)
+    worker("stratum", rec.pathsFlames.stratumPaths)
 
     def worker(pathType: String, paths: IndexedSeq[IgnitionPath]) {
       paths foreach { pp =>
@@ -472,7 +518,7 @@ object TableIgnitionPaths extends Table {
           tbl.insert(
             &(rec.repId),
             &(rec.runIndex),
-            rec.so.stratum.level.toString,
+            level.toString,
             pathType,
             spname,
             &(seg.start.x),
@@ -485,4 +531,29 @@ object TableIgnitionPaths extends Table {
     }
   }
 }
+
+
+/////////////////////////////////////////////////////////////////////////////
+object TableROS extends Table {
+  val name = "ROS"
+
+  val createSQL = """
+      CREATE TABLE ROS(
+      repId INT NOT NULL,
+      runIndex INT NOT NULL,
+      level TEXT NOT NULL,
+      ros REAL,
+      PRIMARY KEY(repId, runIndex, level))"""
+
+  case class Rec(repId: Long, runIndex: Long, level: StratumLevel, ros: Double)
+  type Record = Rec
+
+  def inserter(tbl: ISqlJetTable, rec: Rec): Unit =
+    tbl.insert(
+      &(rec.repId),
+      &(rec.runIndex),
+      rec.level.toString,
+      &(rec.ros))
+}
+
 

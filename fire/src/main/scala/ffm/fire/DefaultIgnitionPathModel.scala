@@ -53,9 +53,9 @@ import IgnitionRunType._
 
       var iPt = initialPoint
       
-      //we loop over an indeterminate number of time steps, but no more 
-      //than maxTimeSteps counted from when ignition occurs. This is why
-      //we use safetyCounter instead of timeStep in the loop condition. 
+      // We loop for an indeterminate number of time steps while there
+      // is a possibility of ignition.  If ignition occurs we then loop
+      // further for a maximum of ModelSettings.MaxIgnitionTimeSteps.
 
       val TimeStepLoop = new Breaks
       val PointLoop = new Breaks

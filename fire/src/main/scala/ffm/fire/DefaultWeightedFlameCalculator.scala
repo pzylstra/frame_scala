@@ -9,7 +9,7 @@ import ffm.forest.StratumLevel
 
 object DefaultWeightedFlameCalculator extends WeightedFlames.Calculator {
 
-  import WeightedFlames.{Result, EmptyResult, FlameParams}    
+  import WeightedFlames._  
 
   /**
    * Derived weighted flame values from the given ignition paths.

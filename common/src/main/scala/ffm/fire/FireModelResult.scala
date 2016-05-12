@@ -9,9 +9,9 @@ trait FireModelResult {
   /** The site (including conditions and vegetation) for which this run was done. */
   def site: Site
   
-  /** Aggregated flame attributes for strata. */
-  def stratumResults: IndexedSeq[StratumFlameSummary]
+  /** Results for first ignition run. */
+  def run1: FireModelRunResult
   
-  /** Individual run results. */
-  def runResults: IndexedSeq[FireModelRunResult]
+  /** Results for second ignition run (may be an empty object). */
+  def run2: FireModelRunResult
 }

@@ -83,7 +83,7 @@ trait IgnitionPath {
   def timeStepForMaxLength =
     if (hasIgnition) segmentsByLengthAndTime.head.timeStep 
     else throw new UnsupportedOperationException("Ignition did not occur")
-    
+        
   /** 
    * Maximum x ordinate of any part of a any segment in the path.
    */

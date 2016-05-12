@@ -3,15 +3,35 @@ package ffm.fire
 import ffm.forest.Site
 import ffm.forest.StratumLevel
 import ffm.forest.Vegetation
+import ffm.forest.VegetationWindModel
 
 /**
  * Holds data for a single run of a [[FireModel]].
  */
 case class DefaultFireModelRunResult(
     site: Site,
+    canopyIncluded: Boolean,
     surfaceOutcome: SurfaceOutcome,
-    stratumOutcomes: IndexedSeq[StratumOutcome],
-    combinedFlames: IndexedSeq[Flame]) extends FireModelRunResult {
+    pathsAndFlames: Map[StratumLevel, StratumPathsFlames],
+    flameSummaries: Map[StratumLevel, StratumFlameSummary],
+    combinedFlames: IndexedSeq[Flame],
+    ratesOfSpread:  Map[StratumLevel, Double]) extends FireModelRunResult
+
+/**
+ * Companion object with a method to create an empty result.
+ * 
+ * An empty run result has an empty surface outcome and
+ * no paths or flames.
+ */
+object DefaultFireModelRunResult {
+  def empty(site: Site, canopyIncluded: Boolean) = DefaultFireModelRunResult(
+      site, 
+      canopyIncluded = canopyIncluded,
+      DefaultSurfaceOutcome.Empty, 
+      pathsAndFlames = Map.empty, 
+      flameSummaries = Map.empty, 
+      combinedFlames = Vector.empty,
+      ratesOfSpread = Map.empty)  
 }
 
 
@@ -22,53 +42,97 @@ case class DefaultFireModelRunResult(
  * Some ordering is enforced by the `add` methods: surface data must be
  * added first, then stratum outcomes (if any), then combined flames (if any).
  */
-class DefaultFireModelRunResultBuilder(site: Site) {
+class DefaultFireModelRunResultBuilder(site: Site, canopyIncluded: Boolean) {
 
-  private object EmptySurfaceOutcome extends SurfaceOutcome {
-    val windSpeed = 0.0
-    val flames = Vector.empty
-    val flameSummary = StratumFlameSummary(StratumLevel.Surface, 0.0, 0.0, 0.0)
-  }
+  private var workingResult = 
+    DefaultFireModelRunResult.empty(site, canopyIncluded)
 
-  private val EmptyResult = DefaultFireModelRunResult(site, EmptySurfaceOutcome, Vector.empty, Vector.empty)
-
-  private var result = EmptyResult
 
   def addSurfaceOutcome(surf: SurfaceOutcome): Unit = {
-    require(result.surfaceOutcome == EmptySurfaceOutcome, 
+    require(workingResult.surfaceOutcome == DefaultSurfaceOutcome.Empty, 
         "Adding a surface outcome when prior data have been set")
     
-    result = result.copy(surfaceOutcome = surf)
+    workingResult = workingResult.copy(surfaceOutcome = surf)
   }
 
-  def addStratumOutcome(strat: StratumOutcome): Unit = {
-    require(result.combinedFlames.isEmpty, 
+  def addStratumPathsFlames(pnf: StratumPathsFlames): Unit = {
+    require(workingResult.combinedFlames.isEmpty, 
         "Adding a stratum outcome after combined flames")
     
-    result = result.copy(stratumOutcomes = result.stratumOutcomes :+ strat)
+    workingResult = workingResult.copy(pathsAndFlames = workingResult.pathsAndFlames + (pnf.stratum.level -> pnf))
   }
 
   def addCombinedFlames(flames: IndexedSeq[Flame]): Unit = {
     // If the set of flames is not empty, the existing result object should have
     // one or more stratum outcomes already.
-    require(flames.isEmpty || !result.stratumOutcomes.isEmpty,
-      "Adding combined flames to a result object with no stratum outcomes")
+    require(flames.isEmpty || !workingResult.pathsAndFlames.isEmpty,
+      "Adding combined flames to a result object with no stratum paths and flames recorded")
 
-    result = result.copy(combinedFlames = flames)
+    workingResult = workingResult.copy(combinedFlames = flames)
   }
 
   /**
    * The flame series with the largest flame for each stratum.
+   * 
+   * TODO: this is here because DefaultSingleSiteFireModel needs it prior to creating the run result,
+   *   but it is not a sensible or safe arrangement.
    */
-  def largestFlameSeriesPerStratum(): IndexedSeq[StratumFlameSeries] =
-    result.stratumOutcomes.flatMap { outcome => StratumOutcome.selectMaxFlameSeries(outcome, _.maxFlameLength) }
+  def largestFlameSeriesPerStratum(): Map[StratumLevel, StratumFlameSeries] =
+    for { 
+      (level, pnf) <- workingResult.pathsAndFlames
+      fs <- StratumPathsFlames.selectMaxFlameSeries(pnf, _.maxFlameLength)
+    } yield (level -> fs)
 
   /**
-   * Return the result object in its current state.
+   * Returns the result object in its current state.
    * 
-   * Note: each call to this method returns a new immutable result object.
+   * Calling this method causes a flame summary (length, height, angle) and
+   * rate of spread to be calculated for each stratum currently recorded.
+   *
+   * Each call returns a new immutable result object.
    */
-  def toResult(): FireModelRunResult = result
+  def toResult(windModel: VegetationWindModel, includeCanopy: Boolean): FireModelRunResult = {
+      
+    // Calculate flame summaries
+    //
+    val fsums = (workingResult.pathsAndFlames.map {
+      case (level, pnf) =>
+
+        val opFS = StratumPathsFlames.selectMaxFlameSeries(pnf, _.cappedMaxFlameLength)
+
+        val fsum =
+          if (opFS.isEmpty) StratumFlameSummary(level, 0.0, 0.0, 0.0)
+
+          else {
+            val fs = opFS.get
+            val len = fs.cappedMaxFlameLength
+            val origin = fs.longestFlame.origin
+
+            val windSpeed = windModel.windSpeedAtHeight(pnf.stratum.averageMidHeight, site, includeCanopy)
+
+            val angle =
+              if (level == StratumLevel.Canopy)
+                DefaultFlame.windEffectFlameAngle(len, windSpeed, site.surface.slope)
+              else
+                DefaultFlame.flameAngle(len, windSpeed, site.surface.slope, site.context.fireLineLength)
+
+            val height = origin.y + len * math.sin(angle) - (origin.x + len * math.cos(angle)) * math.tan(site.surface.slope)
+
+            StratumFlameSummary(level, len, angle, height)
+          }
+
+        (level -> fsum)
+    }).toMap
+    
+    workingResult = workingResult.copy(flameSummaries = fsums)
+
+    // Calculate rates of spread
+    //
+    val ros = DefaultROS.calculate(workingResult)
+    
+    // Return completed result object
+    workingResult.copy(ratesOfSpread = ros)
+  }
 
 }
 
