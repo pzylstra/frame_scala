@@ -116,10 +116,11 @@ class Database (val base: SqlJetDb, val useTransactions: Boolean) {
       
     /** Inserts results for an individual ignition run. */
     def insertRunResult(runres: FireModelRunResult, runIndex: Long): Boolean = {
-      insertRunMetadata(runIndex, runres)
-      insertSurfaceResult(runIndex, runres)
-      insertStratumPathsFlames(runIndex, runres)
-      insertFlameSummaries(runIndex, runres)
+      insertRunMetadata(runIndex, runres) &&
+      insertSurfaceResult(runIndex, runres) &&
+      insertStratumPathsFlames(runIndex, runres) &&
+      insertFlameSummaries(runIndex, runres) &&
+      insertROS(runIndex, runres)
     }
     
     def insertRunMetadata(runIndex: Long, runres: FireModelRunResult): Boolean = {
@@ -394,11 +395,11 @@ object TableRuns extends Table {
   val name = "Runs"
 
   val createSQL = """
-      CREATE TABLE Strata (
+      CREATE TABLE Runs (
       repId INT NOT NULL,
       runIndex INT NOT NULL, 
       canopyIncluded BOOLEAN,
-      PRIMARY KEY(repId, level))"""
+      PRIMARY KEY(repId, runIndex))"""
 
   case class Rec(repId: Long, runIndex: Long, canopyIncluded: Boolean)
   type Record = Rec
@@ -434,7 +435,7 @@ object TableFlameSummaries extends Table {
   val name = "FlameSummaries"
 
   val createSQL = """
-      CREATE TABLE StratumResults(
+      CREATE TABLE FlameSummaries(
       repId INT NOT NULL,
       runIndex INT NOT NULL,
       level TEXT NOT NULL,
@@ -494,11 +495,13 @@ object TableIgnitionPaths extends Table {
         level TEXT NOT NULL,
         pathType TEXT NOT NULL,
         species TEXT NOT NULL,
+        segIndex INT,
         x0 REAL,
         y0 REAL,
         x1 REAL,
         y1 REAL,
-        length REAL)"""
+        length REAL,
+        PRIMARY KEY(repId, runIndex, level, pathType, species, segIndex))"""
 
   case class Rec(repId: Long, runIndex: Long, pathsFlames: StratumPathsFlames)
   type Record = Rec
@@ -513,14 +516,17 @@ object TableIgnitionPaths extends Table {
       paths foreach { pp =>
         val spc = pp.speciesComponent
         val spname = spc.species.name
-
-        pp.segments foreach { seg =>
+        
+        (0 until pp.segments.size) foreach { i =>
+          val seg = pp.segments(i)
+          
           tbl.insert(
             &(rec.repId),
             &(rec.runIndex),
             level.toString,
             pathType,
             spname,
+            &(i),
             &(seg.start.x),
             &(seg.start.y),
             &(seg.end.x),
@@ -555,5 +561,4 @@ object TableROS extends Table {
       rec.level.toString,
       &(rec.ros))
 }
-
 
