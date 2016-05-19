@@ -10,7 +10,7 @@ import ffm.forest.VegetationWindModel
  */
 case class DefaultFireModelRunResult(
     site: Site,
-    canopyIncluded: Boolean,
+    canopyEffectIncluded: Boolean,
     surfaceOutcome: SurfaceOutcome,
     pathsAndFlames: Map[StratumLevel, StratumPathsFlames],
     flameSummaries: Map[StratumLevel, StratumFlameSummary],
@@ -24,9 +24,9 @@ case class DefaultFireModelRunResult(
  * no paths or flames.
  */
 object DefaultFireModelRunResult {
-  def empty(site: Site, canopyIncluded: Boolean) = DefaultFireModelRunResult(
+  def empty(site: Site, canopyEffectIncluded: Boolean) = DefaultFireModelRunResult(
       site, 
-      canopyIncluded = canopyIncluded,
+      canopyEffectIncluded = canopyEffectIncluded,
       DefaultSurfaceOutcome.Empty, 
       pathsAndFlames = Map.empty, 
       flameSummaries = Map.empty, 
@@ -91,7 +91,7 @@ class DefaultFireModelRunResultBuilder(site: Site, canopyIncluded: Boolean) {
    *
    * Each call returns a new immutable result object.
    */
-  def toResult(windModel: VegetationWindModel, includeCanopy: Boolean): FireModelRunResult = {
+  def toResult(windModel: VegetationWindModel, canopyEffectIncluded: Boolean): FireModelRunResult = {
       
     // Calculate flame summaries
     //
@@ -108,7 +108,7 @@ class DefaultFireModelRunResultBuilder(site: Site, canopyIncluded: Boolean) {
             val len = fs.cappedMaxFlameLength
             val origin = fs.longestFlame.origin
 
-            val windSpeed = windModel.windSpeedAtHeight(pnf.stratum.averageMidHeight, site, includeCanopy)
+            val windSpeed = windModel.windSpeedAtHeight(pnf.stratum.averageMidHeight, site, canopyEffectIncluded)
 
             val angle =
               if (level == StratumLevel.Canopy)
@@ -126,9 +126,9 @@ class DefaultFireModelRunResultBuilder(site: Site, canopyIncluded: Boolean) {
     
     workingResult = workingResult.copy(flameSummaries = fsums)
 
-    // Calculate rates of spread
+    // Calculate rates of spread for strata other than the canopy
     //
-    val ros = DefaultROS.calculate(workingResult)
+    val ros = DefaultROS.calculateNonCanopy(workingResult)
     
     // Return completed result object
     workingResult.copy(ratesOfSpread = ros)

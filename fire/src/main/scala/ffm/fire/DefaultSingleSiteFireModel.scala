@@ -21,11 +21,11 @@ object DefaultSingleSiteFireModelRunner {
     val fireModel = new DefaultSingleSiteFireModel(pathModel, DefaultPlantFlameModel, windModel)
     
     // First run of the model includes the canopy stratum (if one exists)
-    val run1 = fireModel.run(
+    val runWithCanopyEffect = fireModel.run(
         site, 
         includeCanopy = true)
 
-    val fireSpreadInCanopy = run1.pathsAndFlames exists { case (level, pnf) =>
+    val fireSpreadInCanopy = runWithCanopyEffect.pathsAndFlames exists { case (level, pnf) =>
       level == StratumLevel.Canopy &&
       pnf.stratumFlameSeries.isDefined
     }
@@ -33,7 +33,7 @@ object DefaultSingleSiteFireModelRunner {
     // If there was a canopy stratum with fire spread between crowns, re-run with
     // includeCanopy = false (which gives a modified wind speed calculation).
     // Otherwise skip the second run and create an empty result object.
-    val run2 =
+    val runWithoutCanopyEffect =
       if (fireSpreadInCanopy)
         fireModel.run(
             site, 
@@ -42,7 +42,7 @@ object DefaultSingleSiteFireModelRunner {
         DefaultFireModelRunResult.empty(site, false)
     
     // Return the aggregate result
-    new DefaultFireModelResult(site, run1, run2)
+    new DefaultFireModelResult(site, runWithCanopyEffect, runWithoutCanopyEffect)
   }
 }
 

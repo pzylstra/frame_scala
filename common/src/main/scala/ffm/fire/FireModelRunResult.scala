@@ -10,8 +10,8 @@ trait FireModelRunResult {
   /** The site (including conditions and vegetation) for which this run was done. */
   def site: Site
   
-  /** Whether the canopy stratum was included for wind calculations in this run. */
-  def canopyIncluded: Boolean
+  /** Whether canopy effects on wind were included in this run. */
+  def canopyEffectIncluded: Boolean
   
   /** Surface conditions and flames from the run. */
   def surfaceOutcome: SurfaceOutcome
@@ -25,6 +25,8 @@ trait FireModelRunResult {
   /** Combined flames. */
   def combinedFlames: IndexedSeq[Flame]
   
-  /** Rate of spread for each stratum (m/s). */
+  /** 
+   * Rate of spread for strata other than the canopy (m/s).
+   */
   def ratesOfSpread: Map[StratumLevel, Double]
 }

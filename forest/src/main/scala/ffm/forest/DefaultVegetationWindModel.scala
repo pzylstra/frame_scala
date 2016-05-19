@@ -14,14 +14,14 @@ object DefaultVegetationWindModel extends VegetationWindModel {
    */
   def windReductionFactor(site: Site): Double =
     if (site.weather.windSpeed <= 0) 1.0
-    else site.weather.windSpeed / windSpeedAtHeight(1.5, site, includeCanopy = true)
+    else site.weather.windSpeed / windSpeedAtHeight(1.5, site, includeCanopyEffect = true)
 
   /**
    * Calculates surface wind speed.
    * 
    * Takes into account whether the site contains a near-surface stratum or not.
    */
-  def surfaceWindSpeed(site: Site, includeCanopy: Boolean): Double = {
+  def surfaceWindSpeed(site: Site, includeCanopyEffect: Boolean): Double = {
     import StratumLevel._
 
     val surfaceHeight =
@@ -30,7 +30,7 @@ object DefaultVegetationWindModel extends VegetationWindModel {
       else
         ModelSettings.MinHeightForWindModel
 
-    windSpeedAtHeight(surfaceHeight, site, includeCanopy)
+    windSpeedAtHeight(surfaceHeight, site, includeCanopyEffect)
   }
   
   /**
@@ -40,12 +40,12 @@ object DefaultVegetationWindModel extends VegetationWindModel {
    * If the target height is above the highest vegetation stratum being considered, the incident
    * wind speed at the site is returned unmodified.
    */
-  def windSpeedAtHeight(height: Double, site: Site, includeCanopy: Boolean): Double = {
+  def windSpeedAtHeight(height: Double, site: Site, includeCanopyEffect: Boolean): Double = {
     if (site.weather.windSpeed <= 0) 0.0
     else if (site.vegetation.strata.isEmpty) site.weather.windSpeed
     else {
       val workingHeight = math.max(height, ModelSettings.MinHeightForWindModel)
-      val layers = site.vegetation.layers(includeCanopy)
+      val layers = site.vegetation.layers(includeCanopyEffect)
       
       val topLayerHeight = (layers.map(_.upper)).max
       

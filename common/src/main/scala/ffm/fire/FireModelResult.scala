@@ -3,15 +3,27 @@ package ffm.fire
 import ffm.forest.Site
 
 /**
- * Defines results which may be aggregated from multiple [[FireModelRunResult]]s.
+ * Holds combined results of ignition runs.
  */
 trait FireModelResult {
   /** The site (including conditions and vegetation) for which this run was done. */
   def site: Site
   
-  /** Results for first ignition run. */
-  def run1: FireModelRunResult
+  /** Results for the first ignition run with canopy effects on wind included. */
+  def resWithCanopyEffect: FireModelRunResult
   
-  /** Results for second ignition run (may be an empty object). */
-  def run2: FireModelRunResult
+  /** 
+   * Results for second ignition run with canopy effect on wind excluded.
+   *  
+   * This may be an empty object. 
+   */
+  def resWithoutCanopyEffect: FireModelRunResult
+  
+  /** 
+   * Rate of spread for the canopy stratum.
+   * 
+   * Note: rates of spread for lower strata will be recorded in
+   * the individual run result objects.
+   */
+  def canopyROS: Double
 }

@@ -16,7 +16,7 @@ object BatchRunner {
   val paramDir = "c:/michael/coding/ffm/params"
   val paramExt = "txt"
   
-  val paramFilesSubset = List("2a.txt")
+  val paramFilesSubset = List("93a.txt")
   
   def main(args: Array[String]): Unit = {
     val allFiles = (new java.io.File(paramDir)).listFiles.filter(_.isFile).toList
@@ -117,22 +117,24 @@ object ResultFormatter {
     val buf = new StringBuilder
     val add = adder(buf)
     
-    add( formatRunResult(fmr.run1) )
+    add( formatRunResult(fmr.resWithCanopyEffect) )
     
-    add( "\n\n=== Second run ===\n\n" )
-    add( formatRunResult(fmr.run2) )
+    if (!fmr.resWithoutCanopyEffect.pathsAndFlames.isEmpty) {
+      add( "\n\n=== Second run ===\n\n" )
+      add( formatRunResult(fmr.resWithoutCanopyEffect, Some(fmr.canopyROS)) )
+    }
     
     buf.toString
   }
     
-  def formatRunResult(runResult: FireModelRunResult): String = {
+  def formatRunResult(runResult: FireModelRunResult, canopyROS: Option[Double] = None): String = {
     val buf = new StringBuilder    
     val add = adder(buf)
     
     buf ++= formatSurfaceParams(runResult.surfaceOutcome) + '\n'
     
     runResult.flameSummaries foreach { case(level, fsum) =>
-      add( s"level" )
+      add( s"$level" )
       add( f"  flame length: ${fsum.flameLength}%.2f" )
       add( f"  flame angle:  ${fsum.flameAngle}%.2f" )
       add( f"  flame height:  ${fsum.flameHeight}%.2f" )
@@ -142,6 +144,11 @@ object ResultFormatter {
     runResult.ratesOfSpread foreach { case(level, ros) =>
       val kph = Units.convert("m/s", ros, "km/h")
       add(f"$level : ${ros}%.2f m/s  ${kph}%.2f km/h")
+    }
+    if (canopyROS.isDefined) {
+      val ros = canopyROS.get
+      val kph = Units.convert("m/s", ros, "km/h")
+      add(f"Canopy : ${ros}%.2f m/s  ${kph}%.2f km/h")
     }
     add("")
 

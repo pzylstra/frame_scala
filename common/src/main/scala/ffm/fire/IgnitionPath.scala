@@ -85,7 +85,7 @@ trait IgnitionPath {
     else throw new UnsupportedOperationException("Ignition did not occur")
         
   /** 
-   * Maximum x ordinate of any part of a any segment in the path.
+   * Maximum x ordinate of any part of any segment in the path.
    */
   def maxX: Option[Double] =
     if (hasIgnition) {

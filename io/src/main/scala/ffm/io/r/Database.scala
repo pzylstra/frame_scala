@@ -111,7 +111,9 @@ class Database (val base: SqlJetDb, val useTransactions: Boolean) {
     
     /** Inserts results for ignition runs. */
     def insertRunResults(res: FireModelResult): Boolean = {
-      insertRunResult(res.run1, 1L) && insertRunResult(res.run2, 2L)
+      insertRunResult(res.resWithCanopyEffect, 1L) && 
+      insertRunResult(res.resWithoutCanopyEffect, 2L) &&
+      insertROS(res)
     }
       
     /** Inserts results for an individual ignition run. */
@@ -119,14 +121,13 @@ class Database (val base: SqlJetDb, val useTransactions: Boolean) {
       insertRunMetadata(runIndex, runres) &&
       insertSurfaceResult(runIndex, runres) &&
       insertStratumPathsFlames(runIndex, runres) &&
-      insertFlameSummaries(runIndex, runres) &&
-      insertROS(runIndex, runres)
+      insertFlameSummaries(runIndex, runres)
     }
     
     def insertRunMetadata(runIndex: Long, runres: FireModelRunResult): Boolean = {
       writer {
         val tbl = base.getTable(TableRuns.name)
-        val rec = TableRuns.Rec(repId, runIndex, runres.canopyIncluded)
+        val rec = TableRuns.Rec(repId, runIndex, runres.canopyEffectIncluded)
         TableRuns.inserter(tbl, rec)
       }
     }
@@ -177,15 +178,31 @@ class Database (val base: SqlJetDb, val useTransactions: Boolean) {
       }
     }
     
-    def insertROS(runIndex: Long, runres: FireModelRunResult): Boolean = {
+    /**
+     * Inserts rates of spread results for strata.
+     * 
+     * This function takes the FireModelResult object rather than
+     * an individual FireModelRunResult object because rate of
+     * spread for the canopy is held in the higher level object.
+     */
+    def insertROS(res: FireModelResult): Boolean = {
       writer {
         val tbl = base.getTable(TableROS.name)
-        runres.ratesOfSpread foreach { case (level, ros) =>
-          val rec = TableROS.Rec(repId, runIndex, level, ros)
-          TableROS.inserter(tbl, rec)
-        }
+        
+        def dorun(runIndex: Long, runres: FireModelRunResult) =
+          runres.ratesOfSpread foreach { case (level, ros) =>
+            val rec = TableROS.Rec(repId, runIndex, level, ros)
+            TableROS.inserter(tbl, rec)
+          }
+        
+        dorun(1L, res.resWithCanopyEffect)
+        dorun(2L, res.resWithoutCanopyEffect)
+
+        val rec = TableROS.Rec(repId, 2L, StratumLevel.Canopy, res.canopyROS)
+        TableROS.inserter(tbl, rec)
       }
     }
+    
   }
 }
 

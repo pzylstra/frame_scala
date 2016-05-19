@@ -3,15 +3,19 @@ package ffm.fire
 import ffm.forest.Site
 
 /**
- * Aggregates results from separate runs of a fire model, with and without a canopy layer.
+ * Holds combined results of ignition runs.
  */
 class DefaultFireModelResult(
     val site: Site,
-    val run1: FireModelRunResult,
-    val run2: FireModelRunResult) extends FireModelResult {
+    val resWithCanopyEffect: FireModelRunResult,
+    val resWithoutCanopyEffect: FireModelRunResult) extends FireModelResult {
   
   val hasSecondRun: Boolean =
-    run2.pathsAndFlames.nonEmpty
+    resWithoutCanopyEffect.pathsAndFlames.nonEmpty
+    
+  val canopyROS: Double = 
+    if (hasSecondRun) DefaultROS.calculateCanopy(resWithCanopyEffect, resWithoutCanopyEffect)
+    else 0.0
 
 }
 
