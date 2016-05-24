@@ -92,15 +92,16 @@ import IgnitionRunType._
 
           val maxPlantPath = potentialPlantPathLength(plantFlame, iPt)
           val maxIncidentPath = potentialIncidentPathLength(incidentFlame, iPt)
+          val maxPath = math.max(maxPlantPath, maxIncidentPath)
 
           //if there is any more of the plant to burn then compute ignition for the next time step
           var ePt = iPt
-          if (Numerics.Distance.gt(maxIncidentPath, 0.0) || Numerics.Distance.gt(maxPlantPath, 0.0)) {
+          if (Numerics.Distance.gt(maxPath, 0.0)) {
             //the direction and max possible extent of the next ignition segment is determined by 
             //whichever path has the greatest length
-            val (pathLength, pathAngle) =
-              if (maxPlantPath > maxIncidentPath) (maxPlantPath, plantFlame.get.angle)
-              else (maxIncidentPath, incidentFlame.get.angle)
+            val pathAngle =
+              if (maxPlantPath > maxIncidentPath) plantFlame.get.angle
+              else incidentFlame.get.angle
 
             val locatedPreHeatingFlames = activePreHeatingFlames map { phf =>
               val origin = locateFlameOrigin(phf.flame, ePt)
@@ -109,7 +110,7 @@ import IgnitionRunType._
 
             //the possible ignition distance is divided into numPenetrationSteps segments and we test each
             //segment in turn for ignition
-            val stepDist = pathLength / NumPenetrationSteps
+            val stepDist = maxPath / NumPenetrationSteps
             val testPoints = (1 to NumPenetrationSteps) map (i => iPt.toBearing(pathAngle, i * stepDist))
 
             PointLoop.breakable {
@@ -230,9 +231,14 @@ import IgnitionRunType._
                 else pathBuilder.segments(n - flameDuration).end
               }
 
-              if (!Numerics.Distance.almostZero(maxIncidentPath) || 
-                  !Numerics.Distance.almostZero(maxPlantPath) || 
-                  segStart.distinctFrom(ePt)) {
+              // Removed the test for remaining path length that was here
+              // (based on C++ code) as it resulted in problems with near-zero
+              // length ignited segments.
+              //
+              //if (!Numerics.Distance.almostZero(maxPath) ||
+              //    segStart.distinctFrom(ePt)) {
+              
+              if (segStart.distinctFrom(ePt)) {
                 pathBuilder.addSegment(timeStep, segStart, ePt)
                 plantFlames += newPlantFlame(pathBuilder.last, modifiedWindSpeed)
 

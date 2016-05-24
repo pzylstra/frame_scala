@@ -186,15 +186,15 @@ class Database (val base: SqlJetDb, val useTransactions: Boolean) {
      * spread for the canopy is held in the higher level object.
      */
     def insertROS(res: FireModelResult): Boolean = {
+      val tbl = base.getTable(TableROS.name)
+
+      def dorun(runIndex: Long, runres: FireModelRunResult) =
+        runres.ratesOfSpread foreach { case (level, ros) =>
+          val rec = TableROS.Rec(repId, runIndex, level, ros)
+          TableROS.inserter(tbl, rec)
+        }
+        
       writer {
-        val tbl = base.getTable(TableROS.name)
-        
-        def dorun(runIndex: Long, runres: FireModelRunResult) =
-          runres.ratesOfSpread foreach { case (level, ros) =>
-            val rec = TableROS.Rec(repId, runIndex, level, ros)
-            TableROS.inserter(tbl, rec)
-          }
-        
         dorun(1L, res.resWithCanopyEffect)
         dorun(2L, res.resWithoutCanopyEffect)
 

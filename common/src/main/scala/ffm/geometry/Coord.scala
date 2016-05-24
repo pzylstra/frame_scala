@@ -49,7 +49,7 @@ case class Coord(val x: Double, val y: Double) {
    * A short-cut for distanceTo(other) < Numerics.DistanceTolerance
    */
   def almostEq(other: Coord): Boolean =
-    distanceTo(other) < Numerics.DistanceTolerance
+    distanceTo(other) <= Numerics.DistanceTolerance
     
   /**
    * Tests if this Coord is at a different position to another.
