@@ -226,7 +226,7 @@ object DefaultFlame {
     
     val initLen = flame1.flameLength + flame2.flameLength - (overlap1 + overlap2) / 2
     
-    math.max(initLen, math.max(flame1.flameLength, math.max(flame2.flameLength, flame1.depthIgnited)))
+    math.max(initLen, math.max(flame1.flameLength, math.max(flame2.flameLength, flame1.depthIgnited + flame2.depthIgnited)))
   }
 
   /**
