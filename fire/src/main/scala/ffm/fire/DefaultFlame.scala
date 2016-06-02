@@ -15,7 +15,7 @@ object DefaultFlame {
    * Creates a new flame.
    */
   def apply(length: Double, angle: Double, origin: Coord, depthIgnited: Double, deltaTemperature: Double): Flame = 
-    new DefaultImpl(length, angle, origin, depthIgnited, deltaTemperature)
+    new DefaultFlameImpl(length, angle, origin, depthIgnited, deltaTemperature)
   
   /**
    * Create a copy of a flame object.
@@ -28,7 +28,7 @@ object DefaultFlame {
    * new origin coordinate.
    */
   def toOrigin(f: Flame, newOrigin: Coord): Flame = 
-    new DefaultImpl(f.flameLength, f.angle, newOrigin, f.depthIgnited, f.deltaTemperature)
+    new DefaultFlameImpl(f.flameLength, f.angle, newOrigin, f.depthIgnited, f.deltaTemperature)
 
 
 
@@ -183,7 +183,7 @@ object DefaultFlame {
     val len = combinedFlameLength(flame1, flame2)    
     val angle = flameAngle(len, windSpeed, slope, fireLineLength)
     
-    new DefaultImpl(len, angle, origin, depth, temp)
+    new DefaultFlameImpl(len, angle, origin, depth, temp)
   }
 
   /**
@@ -197,7 +197,7 @@ object DefaultFlame {
     val angle = (flame1.flameLength * flame1.angle + flame2.flameLength * flame2.angle) /
     (flame1.flameLength + flame2.flameLength)
     
-    new DefaultImpl(len, angle, origin, depth, temp)
+    new DefaultFlameImpl(len, angle, origin, depth, temp)
   }
     
   /**
@@ -246,7 +246,7 @@ object DefaultFlame {
   //
   /////////////////////////////////////////////////////////////////////////////
 
-  private class DefaultImpl (
+  private class DefaultFlameImpl (
       val flameLength: Double,
       val angle: Double,
       val origin: Coord,
@@ -256,8 +256,10 @@ object DefaultFlame {
     // Unlike the original C++ code we don't allow null flames
     require(flameLength > 0, "flame length must be greater than 0")
     require(depthIgnited >= 0, "depth Ignited must be 0 or greater")
-
-    require(flameLength > depthIgnited, "flame length must be greater than depth ignited")
+    
+    // Compare flame length to depth ignited allowing for distance
+    // tolerance.
+    require(Numerics.Distance.geq(flameLength, depthIgnited), "flame length must not be less than depth ignited")
 
     val tip = origin.toBearing(angle, flameLength)
 
