@@ -2,12 +2,12 @@ name := "ffm"
 
 description := "Forest flammability model"
 
-scalaVersion in ThisBuild := "2.11.8"
+scalaVersion in ThisBuild := "2.12.2"
 
 lazy val printClasspath = taskKey[Unit]("Print classpath")
 
 lazy val commonSettings = Seq(
-  version := "0.1",
+  version := "0.1.1",
   organization := "cermb",
   printClasspath := {
     val els = (fullClasspath in Runtime).value.files map(_.getPath)
@@ -17,8 +17,8 @@ lazy val commonSettings = Seq(
 
 lazy val testSettings = Seq(
   libraryDependencies ++= Seq(
-    "org.scalatest" %% "scalatest" % "2.2.4" % "test",
-    "org.scalacheck" %% "scalacheck" % "1.11.5" % "test",
+    "org.scalatest" %% "scalatest" % "3.0.1" % "test",
+    "org.scalacheck" %% "scalacheck" % "1.13.4" % "test",
     "org.mockito" % "mockito-core" % "1.9.5" % "test"
   )
 )
@@ -52,8 +52,8 @@ lazy val io = (project in file("io")).
   settings(testSettings: _*).
   settings(
     libraryDependencies ++= Seq(
-      "org.scala-lang.modules" %% "scala-parser-combinators" % "1.0.4",
-      "com.github.tototoshi" %% "scala-csv" % "1.3.1",
+      "org.scala-lang.modules" %% "scala-parser-combinators" % "1.0.6",
+      "com.github.tototoshi" %% "scala-csv" % "1.3.4",
       "org.tmatesoft.sqljet" % "sqljet" % "1.1.10"
       // "org.scalikejdbc" %% "scalikejdbc" % "2.3.5",
       // "org.xerial" % "sqlite-jdbc" % "3.7.2",
