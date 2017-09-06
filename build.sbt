@@ -7,7 +7,7 @@ scalaVersion in ThisBuild := "2.12.2"
 lazy val printClasspath = taskKey[Unit]("Print classpath")
 
 lazy val commonSettings = Seq(
-  version := "0.1.1",
+  version := "0.1.2",
   organization := "cermb",
   printClasspath := {
     val els = (fullClasspath in Runtime).value.files map(_.getPath)

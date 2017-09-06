@@ -228,7 +228,7 @@ object DefaultROS extends ROS {
             val i = math.min(path.segments.size, nextLevelTimeStep)
             Some( path.segments(i - 1).start multipliedBy path.speciesComponent.weighting )
 
-          case None =>
+          case _ =>
             // No stratum path with ignition for this species - use plant path
             // if present with ignition
             val path = pnf.pathForSpecies(sp, IgnitionRunType.PlantRun).get
