@@ -209,7 +209,7 @@ import IgnitionRunType._
 
           if (pathBuilder.hasIgnition || ePt.distinctFrom(iPt)) {
             if (!pathBuilder.hasIgnition) {
-              val flame = newPlantFlame(pathBuilder.last, modifiedWindSpeed)
+              val flame = newPlantFlame(iPt, ePt, modifiedWindSpeed)
               plantFlames += flame
               pathBuilder.addSegment(timeStep, iPt, ePt, flame.flameLength)
 
@@ -240,7 +240,7 @@ import IgnitionRunType._
               //    segStart.distinctFrom(ePt)) {
               
               if (segStart.distinctFrom(ePt)) {
-                val flame = newPlantFlame(pathBuilder.last, modifiedWindSpeed)
+                val flame = newPlantFlame(segStart, ePt, modifiedWindSpeed)
                 plantFlames += flame
                 pathBuilder.addSegment(timeStep, segStart, ePt, flame.flameLength)
               } else {
@@ -341,20 +341,21 @@ import IgnitionRunType._
     }
 
     /*
-     * Creates a new plant flame based on the given ignited segment
+     * Creates a new plant flame based on ignited segment dimensions
      */
-    def newPlantFlame(segment: IgnitedSegment, windSpeed: Double): Flame = {
-      assert(segment.length > 0)
+    def newPlantFlame(segmentStart: Coord, segmentEnd: Coord, windSpeed: Double): Flame = {
+      val seglen = segmentStart.distanceTo(segmentEnd)
+      assert(seglen > 0)
 
-      val flameLen = plantFlameModel.flameLength(species, segment.length)
+      val flameLen = plantFlameModel.flameLength(species, seglen)
       val deltaT =
         if (DefaultSpeciesUtils.isGrass(species, level)) GrassFlameDeltaTemperature
         else MainFlameDeltaTemperature
 
       DefaultFlame(flameLen,
         DefaultFlame.windEffectFlameAngle(flameLen, windSpeed, site.surface.slope),
-        segment.start,
-        segment.length,
+        segmentStart,
+        seglen,
         deltaT)
     }
 
