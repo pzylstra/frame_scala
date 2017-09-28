@@ -518,6 +518,7 @@ object TableIgnitionPaths extends Table {
         x1 REAL,
         y1 REAL,
         length REAL,
+        flameLength REAL,
         PRIMARY KEY(repId, runIndex, level, pathType, species, segIndex))"""
 
   case class Rec(repId: Long, runIndex: Long, pathsFlames: StratumPathsFlames)
@@ -526,10 +527,18 @@ object TableIgnitionPaths extends Table {
   def inserter(tbl: ISqlJetTable, rec: Rec): Unit = {
     val level = rec.pathsFlames.stratum.level
 
-    worker("plant", rec.pathsFlames.plantPaths)
-    worker("stratum", rec.pathsFlames.stratumPaths)
+    worker("plant")
+    worker("stratum")
 
-    def worker(pathType: String, paths: IndexedSeq[IgnitionPath]) {
+    def worker(pathType: String) {
+      val (paths, flames) = pathType match {
+        case "plant" => (rec.pathsFlames.plantPaths, rec.pathsFlames.plantFlameSeries)
+        case "stratum" => (rec.pathsFlames.stratumPaths, rec.pathsFlames.stratumFlameSeries)
+        
+        // just in case
+        case _ => throw new Error("Unrecognized path type: " + pathType)
+      }
+      
       paths foreach { pp =>
         val spc = pp.speciesComponent
         val spname = spc.species.name
@@ -548,7 +557,8 @@ object TableIgnitionPaths extends Table {
             &(seg.start.y),
             &(seg.end.x),
             &(seg.end.y),
-            &(seg.length))
+            &(seg.length),
+            &(seg.flameLength))
         }
       }
     }

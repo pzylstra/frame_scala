@@ -41,8 +41,7 @@ class DefaultWeightedFlameCalculatorSpec extends MockSpec with PropertyChecks {
     val spComp = SpeciesComponent(mockSp1, 1.0)
 
     forAll(SegmentCounts) { numSeg =>
-      val lengths = List.fill(numSeg)(1.0)
-      val segments = createSegments(lengths)
+      val segments = createUniformSegments(numSeg)
       val path = createPath(spComp, StratumLevel.MidStorey)(segments)
       val attr = CalcFn(Vector(path))
       attr.size should be(numSeg)
@@ -86,11 +85,13 @@ class DefaultWeightedFlameCalculatorSpec extends MockSpec with PropertyChecks {
         val lengths2 = makeLenths(dt2)
 
         val path1 = createPath(spComp1, level) {
-          createSegments(lengths1, igTime1)
+          val flameLengths = Vector.fill(lengths1.size)(1.0)
+          createSegments(lengths1, flameLengths, igTime1)
         }
 
         val path2 = createPath(spComp2, level) {
-          createSegments(lengths2, igTime2)
+          val flameLengths = Vector.fill(lengths2.size)(1.0)
+          createSegments(lengths2, flameLengths, igTime2)
         }
 
         val attr = CalcFn(Vector(path1, path2))
@@ -121,16 +122,19 @@ class DefaultWeightedFlameCalculatorSpec extends MockSpec with PropertyChecks {
       stratumWindSpeed = 5.0)
   }
 
-  def createUniformSegments(n: Int, length: Double = 1.0, ignitTimeStep: Int = 1) =
-    createSegments(Vector.fill(n)(length), ignitTimeStep)
+  def createUniformSegments(n: Int, segLength: Double = 1.0, flameLength: Double = 1.0, ignitTimeStep: Int = 1) =
+    createSegments(
+        segmentLengths = Vector.fill(n)(segLength), 
+        flameLengths = Vector.fill(n)(flameLength), 
+        ignitTimeStep)
     
-  def createSegments(segmentLengths: Seq[Double], ignitTimeStep: Int = 1): IndexedSeq[IgnitedSegment] = {
+  def createSegments(segmentLengths: Seq[Double], flameLengths: Seq[Double], ignitTimeStep: Int = 1): IndexedSeq[IgnitedSegment] = {
     val xs = segmentLengths.scanLeft(0.0)(_ + _)
     val starts = xs.init map (x => Coord(x, 0.0))
     val ends   = xs.tail map (x => Coord(x, 0.0))
     
     (0 until segmentLengths.size) map { i =>
-      IgnitedSegment(i + ignitTimeStep, starts(i), ends(i)) 
+      IgnitedSegment(i + ignitTimeStep, starts(i), ends(i), flameLengths(i)) 
     }
   }
     

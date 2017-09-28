@@ -29,7 +29,7 @@ trait IgnitionPathBuilder {
     ignitionDelayTime: Double): Unit
 
   /** Adds a new segment. */
-  def addSegment(timeStep: Int, start: Coord, end: Coord)
+  def addSegment(timeStep: Int, start: Coord, end: Coord, flameLength: Double)
 
   /** The number of segments added so far. */
   def numSegments: Int
@@ -120,14 +120,14 @@ object IgnitionPathBuilder {
     def preIgnitionData = preIgnitionBuffer.toVector
     def segments = segmentBuffer.toVector
 
-    def addSegment(timeStep: Int, start: Coord, end: Coord): Unit = {
+    def addSegment(timeStep: Int, start: Coord, end: Coord, flameLength: Double): Unit = {
       if (!hasIgnition)
         require(start.almostEq(initialPoint))
       else
         require(timeStep == segmentBuffer.last.timeStep + 1,
             s"Time step for ignited segment ($timeStep) should be later than previous time (${segmentBuffer.last.timeStep})")
             
-      segmentBuffer += new IgnitedSegment(timeStep, start, end)
+      segmentBuffer += new IgnitedSegment(timeStep, start, end, flameLength)
     }
 
     def numSegments = segmentBuffer.size
