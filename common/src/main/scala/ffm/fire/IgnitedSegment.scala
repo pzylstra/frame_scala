@@ -6,10 +6,11 @@ import ffm.numerics.Numerics
 /** 
  * Represents an ignited segment between two points at a given time step. 
  */
-case class IgnitedSegment(timeStep: Int, start: Coord, end: Coord) {
+case class IgnitedSegment(timeStep: Int, start: Coord, end: Coord, flameLength: Double) {
   val length = start.distanceTo(end)
 
   require(Numerics.Distance.gt(length, 0.0), "Ignited segment length must be greater than 0")
+  require(Numerics.Default.gt(flameLength, 0.0), "Ignited segment flame length must be greater than 0.0")
 
   /**
    * Override equals so that the start and end coordinates are compared

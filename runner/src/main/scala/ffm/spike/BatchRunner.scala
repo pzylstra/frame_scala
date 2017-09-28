@@ -11,10 +11,11 @@ import ffm.util.FileUtils
 
 object BatchRunner {
 
-  val paramDir = "c:/michael/coding/ffm/params"
+  // val paramDir = "c:/michael/coding/ffm/params"
+  val paramDir = "c:/michael/Rworkspaces/Phil/package_testing"
   val paramExt = "txt"
 
-  val paramFilesSubset = List("93a_wind20_slope02.txt")
+  val paramFilesSubset = List("Heath.txt") // List("93a_wind20_slope02.txt")
 
   def main(args: Array[String]): Unit = {
     val allFiles = (new java.io.File(paramDir)).listFiles.filter(_.isFile).toList

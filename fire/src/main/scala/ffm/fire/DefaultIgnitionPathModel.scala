@@ -209,8 +209,9 @@ import IgnitionRunType._
 
           if (pathBuilder.hasIgnition || ePt.distinctFrom(iPt)) {
             if (!pathBuilder.hasIgnition) {
-              pathBuilder.addSegment(timeStep, iPt, ePt)
-              plantFlames += newPlantFlame(pathBuilder.last, modifiedWindSpeed)
+              val flame = newPlantFlame(pathBuilder.last, modifiedWindSpeed)
+              plantFlames += flame
+              pathBuilder.addSegment(timeStep, iPt, ePt, flame.flameLength)
 
             } else {
               //compute flame duration and hence start point of new segment
@@ -239,9 +240,9 @@ import IgnitionRunType._
               //    segStart.distinctFrom(ePt)) {
               
               if (segStart.distinctFrom(ePt)) {
-                pathBuilder.addSegment(timeStep, segStart, ePt)
-                plantFlames += newPlantFlame(pathBuilder.last, modifiedWindSpeed)
-
+                val flame = newPlantFlame(pathBuilder.last, modifiedWindSpeed)
+                plantFlames += flame
+                pathBuilder.addSegment(timeStep, segStart, ePt, flame.flameLength)
               } else {
                 TimeStepLoop.break //from loop over time steps
               }
