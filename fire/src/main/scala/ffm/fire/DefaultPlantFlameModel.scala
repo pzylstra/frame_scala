@@ -30,7 +30,7 @@ object DefaultPlantFlameModel extends PlantFlameModel {
    */
   def flameDuration(species: Species): Double =
     math.max(
-      1.37 * species.leafWidth * species.leafThickness * 1.0e6 + 1.61 * species.leafMoisture - 0.027,
+      1.361 * species.leafWidth * species.leafThickness * 1.0e6 + 1.095,
       ComputationTimeInterval)
 
   /**
