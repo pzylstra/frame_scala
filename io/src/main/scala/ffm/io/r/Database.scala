@@ -3,19 +3,11 @@ package ffm.io.r
 import java.sql.Connection
 import java.sql.DriverManager
 import java.sql.ResultSet
+import java.sql.SQLException
 
 import ffm.fire.FireModelResult
-import ffm.fire.IgnitionPath
-import ffm.fire.StratumFlameSummary
-import ffm.fire.SurfaceOutcome
-import ffm.forest.Site
-import ffm.forest.StratumLevel
-import ffm.util.Counter
-import ffm.fire.StratumPathsFlames
 import ffm.fire.FireModelRunResult
 import ffm.fire.StratumPathsFlames
-import java.sql.SQLException
-import java.sql.PreparedStatement
 
 
 /**
@@ -159,8 +151,11 @@ object Database {
       "ROS")
 
       
-  /** Integer index to identify a run with or without the canopy. */
-  def runResultIndex(canopyIncluded: Boolean): Int = if (canopyIncluded) 1 else 2
+  /** Integer index to identify a run with the canopy. */
+  val RunWithCanopy = 1
+  
+  /** Integer index to identify a run without the canopy. */
+  val RunWithoutCanopy = 2
       
       
   /**
@@ -374,6 +369,7 @@ object TableSites extends Table {
     val site = res.site
     
     val pstmt = conn.prepareStatement(insertSQL)
+    
     pstmt.setInt(Fields.RepId.id, repId)
     pstmt.setDouble(Fields.WindSpeed.id, site.weather.windSpeed)
     pstmt.setDouble(Fields.Temperature.id, site.weather.temperature)
@@ -384,6 +380,7 @@ object TableSites extends Table {
     pstmt.setDouble(Fields.DeadFuelMoistureProp.id, site.surface.deadFuelMoistureProp)
     
     pstmt.executeUpdate()
+    pstmt.close()
   }
 }
 
@@ -415,12 +412,12 @@ object TableRuns extends Table {
     val pstmt = conn.prepareStatement(insertSQL)
     
     pstmt.setInt(Fields.RepId.id, repId)
-    pstmt.setInt(Fields.RunIndex.id, Database.runResultIndex(true)) 
+    pstmt.setInt(Fields.RunIndex.id, Database.RunWithCanopy) 
     pstmt.setBoolean(Fields.CanopyIncluded.id, true)
     pstmt.addBatch()
     
     pstmt.setInt(Fields.RepId.id, repId)
-    pstmt.setInt(Fields.RunIndex.id, Database.runResultIndex(false)) 
+    pstmt.setInt(Fields.RunIndex.id, Database.RunWithoutCanopy) 
     pstmt.setBoolean(Fields.CanopyIncluded.id, false)
     pstmt.addBatch()
     
@@ -507,8 +504,8 @@ object TableFlameSummaries extends Table {
       }
     }
     
-    dorun(Database.runResultIndex(true), res.resWithCanopyEffect)
-    dorun(Database.runResultIndex(false), res.resWithoutCanopyEffect)
+    dorun(Database.RunWithCanopy, res.resWithCanopyEffect)
+    dorun(Database.RunWithoutCanopy, res.resWithoutCanopyEffect)
     
     pstmt.executeBatch()
     pstmt.close()
@@ -557,8 +554,8 @@ object TableSurfaceResults extends Table {
       pstmt.addBatch()
     }
     
-    dorun(Database.runResultIndex(true), res.resWithCanopyEffect)
-    dorun(Database.runResultIndex(false), res.resWithoutCanopyEffect)
+    dorun(Database.RunWithCanopy, res.resWithCanopyEffect)
+    dorun(Database.RunWithoutCanopy, res.resWithoutCanopyEffect)
     
     pstmt.executeBatch()
     pstmt.close()
@@ -646,8 +643,8 @@ object TableIgnitionPaths extends Table {
 
     }
 
-    dorun(Database.runResultIndex(true), res.resWithCanopyEffect)
-    dorun(Database.runResultIndex(false), res.resWithoutCanopyEffect)
+    dorun(Database.RunWithCanopy, res.resWithCanopyEffect)
+    dorun(Database.RunWithoutCanopy, res.resWithoutCanopyEffect)
     
     pstmt.executeBatch()
     pstmt.close()
@@ -692,8 +689,8 @@ object TableROS extends Table {
 		  }
     }
         
-    dorun(Database.runResultIndex(true), res.resWithCanopyEffect)
-    dorun(Database.runResultIndex(false), res.resWithoutCanopyEffect)
+    dorun(Database.RunWithCanopy, res.resWithCanopyEffect)
+    dorun(Database.RunWithoutCanopy, res.resWithoutCanopyEffect)
 
     pstmt.executeBatch()
     pstmt.close()
