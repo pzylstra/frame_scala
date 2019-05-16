@@ -1,9 +1,8 @@
 package ffm.io.r
 
-import org.tmatesoft.sqljet.core.SqlJetException
-import org.tmatesoft.sqljet.core.SqlJetTransactionMode
-import org.tmatesoft.sqljet.core.table.ISqlJetTable
-import org.tmatesoft.sqljet.core.table.SqlJetDb
+import java.sql.Connection
+import java.sql.DriverManager
+import java.sql.ResultSet
 
 import ffm.fire.FireModelResult
 import ffm.fire.IgnitionPath
@@ -15,6 +14,23 @@ import ffm.util.Counter
 import ffm.fire.StratumPathsFlames
 import ffm.fire.FireModelRunResult
 import ffm.fire.StratumPathsFlames
+import java.sql.SQLException
+import java.sql.PreparedStatement
+
+
+/**
+ * Wraps a ResultSet object as a Scala iterator.
+ * 
+ * It is handy to have access a ResultSet like a Scala iterator because
+ * we can then use methods such as `map` on the records.
+ * 
+ * @param rs the ResultSet object.
+ */
+class ResultSetIterator(rs: ResultSet) extends Iterator[ResultSet] {
+    def hasNext: Boolean = rs.next()
+    def next: ResultSet = rs
+}
+
 
 /**
  * Manages writing of results to a SQLite database.
@@ -25,18 +41,16 @@ import ffm.fire.StratumPathsFlames
  * 
  * Database instances are created with the companion [[Database$]] object.
  * 
- * @param base the underlying SqlJet database object.
+ * @param conn the underlying JDBC database connection.
  * 
  * @param useTransactions whether to use database transactions (commit / rollback) when 
  *   writing data.
  * 
  */
-class Database (val base: SqlJetDb, val useTransactions: Boolean) {
+class Database (val conn: Connection, val useTransactions: Boolean) {
 
   import Database._
-
-  private val repCounter = Counter[Long](from = 1L, step = 1L)
-
+  
   /**
    * Insert a result into this database. 
    * 
@@ -47,9 +61,9 @@ class Database (val base: SqlJetDb, val useTransactions: Boolean) {
    *   
    * @return `true` if data were written successfully.
    */
-  def insertResult(res: FireModelResult): Boolean = {
-    val s = new Session(res)
-    s.insert()
+  def insertResult(res: FireModelResult): Unit = {
+    val s = new Session()
+    s.insertResults(res)
   }
 
   /**
@@ -58,151 +72,70 @@ class Database (val base: SqlJetDb, val useTransactions: Boolean) {
    * @param checkWritable if `true` (default) check that the database
    *   can be written to; if `false`, only check that the database is open.
    */
-  def isOpen(checkWritable: Boolean = true): Boolean =
-    if (checkWritable) base.isOpen && base.isWritable
-    else base.isOpen
+  def isOpen(checkWritable: Boolean = true): Boolean = {
+    if (conn.isClosed()) false
+    else if (checkWritable) !conn.isReadOnly()
+    else true
+  }
 
   /**
    * Closes the database.
    */
-  def close(): Unit = base.close()
+  def close(): Unit = conn.close()
   
-  
+
   /**
    * Provides variables and methods for the insertion of a single
    * model result.
    */
-  class Session(res: FireModelResult) {
-    /** Auto-incremented replicate ID. */
-    val repId = repCounter.next()
+  class Session() {
+    /** Integer replicate ID value to use in all tables updated in this session. */
+    val repId: Int = {
+      val stmt = conn.createStatement()
+      stmt.setQueryTimeout(5) // query timeout of 5 seconds
+
+      try {
+        val resN = stmt.executeQuery("select count(*) as N from Sites")
+        resN.next()
+        val nrecs = resN.getInt(1)
+
+        val id = 
+          if (nrecs == 0) 1
+          else {
+            val resId = stmt.executeQuery("select max(repId) as R from Sites")
+            resId.next()
+            resId.getInt(1)
+          }
+        
+        id
+
+      } catch {
+        case e: Throwable => throw new Error(e)
+      } finally {
+        stmt.close()
+      }
+    }
+ 
    
     /** The method to write data to tables with or without transactions. */
     val writer = 
-      if (useTransactions) Writer.withTransaction(base)_
-      else Writer.withoutTransaction(base)_
+      if (useTransactions) Writer.withTransaction(conn)_
+      else Writer.withoutTransaction(conn)_
 
     
     /** Inserts the result which was passed to the Session constructor. */
-    def insert(): Boolean = {
-      insertSiteData() &&
-      insertLevels() &&
-      insertRunResults(res)
-    }
-    
-    /** Inserts site meta-data into the Sites table. */
-    def insertSiteData(): Boolean = {
+    def insertResults(res: FireModelResult): Unit = {
       writer {
-        val tbl = base.getTable(TableSites.name)
-        val rec = TableSites.Rec(repId, res.site)
-        TableSites.inserter(tbl, rec)
+        TableSites.inserter(conn, repId, res)
+        TableStrata.inserter(conn, repId, res)
+        TableRuns.inserter(conn, repId, res)
+        TableFlameSummaries.inserter(conn, repId, res)
+        TableIgnitionPaths.inserter(conn, repId, res)
+        TableSurfaceResults.inserter(conn, repId, res)
+        TableROS.inserter(conn, repId, res)
       }
     }
-
-    /** Inserts data into the Strata table. */
-    def insertLevels(): Boolean = {
-      val levels = res.site.vegetation.strata map (_.level)
-      
-      writer {
-        val tbl = base.getTable(TableStrata.name)
-        val rec = TableStrata.Rec(repId, levels)
-        TableStrata.inserter(tbl, rec)
-      }
-    }
-    
-    /** Inserts results for ignition runs. */
-    def insertRunResults(res: FireModelResult): Boolean = {
-      insertRunResult(res.resWithCanopyEffect, 1L) && 
-      insertRunResult(res.resWithoutCanopyEffect, 2L) &&
-      insertROS(res)
-    }
-      
-    /** Inserts results for an individual ignition run. */
-    def insertRunResult(runres: FireModelRunResult, runIndex: Long): Boolean = {
-      insertRunMetadata(runIndex, runres) &&
-      insertSurfaceResult(runIndex, runres) &&
-      insertStratumPathsFlames(runIndex, runres) &&
-      insertFlameSummaries(runIndex, runres)
-    }
-    
-    def insertRunMetadata(runIndex: Long, runres: FireModelRunResult): Boolean = {
-      writer {
-        val tbl = base.getTable(TableRuns.name)
-        val rec = TableRuns.Rec(repId, runIndex, runres.canopyEffectIncluded)
-        TableRuns.inserter(tbl, rec)
-      }
-    }
-    
-    /**
-     * Inserts results for surface flames and wind.
-     * 
-     * @param runIndex ignition run identifier: either 1 or 2.
-     * @param runres the run result object
-     */
-    def insertSurfaceResult(runIndex: Long, runres: FireModelRunResult): Boolean = {
-      writer {  
-        val tbl = base.getTable(TableSurfaceResults.name)
-        val rec = TableSurfaceResults.Rec(repId, runIndex, runres.surfaceOutcome)
-        TableSurfaceResults.inserter(tbl, rec)
-      }
-    }
-
-    /**
-     * Inserts results for each stratum in an ignition run.
-     * 
-     * @param runIndex ignition run identifier: either 1 or 2.
-     * @param runres the run result object
-     */
-    def insertStratumPathsFlames(runIndex: Long, runres: FireModelRunResult): Boolean = {
-      writer { 
-        val tbl = base.getTable(TableIgnitionPaths.name)
-        runres.pathsAndFlames.values foreach { pnf =>
-          val rec = TableIgnitionPaths.Rec(repId, runIndex, pnf)
-          TableIgnitionPaths.inserter(tbl, rec)
-        }
-      }
-    }
-    
-    /**
-     * Inserts the flame summary for each stratum in an ignition run.
-     * 
-     * @param runIndex ignition run identifier: either 1 or 2.
-     * @param runres the run result object
-     */
-    def insertFlameSummaries(runIndex: Long, runres: FireModelRunResult): Boolean = {
-      writer {
-        val tbl = base.getTable(TableFlameSummaries.name)
-        runres.flameSummaries.values foreach { fsum =>
-          val rec = TableFlameSummaries.Rec(repId, runIndex, fsum)
-          TableFlameSummaries.inserter(tbl, rec)
-        }
-      }
-    }
-    
-    /**
-     * Inserts rates of spread results for strata.
-     * 
-     * This function takes the FireModelResult object rather than
-     * an individual FireModelRunResult object because rate of
-     * spread for the canopy is held in the higher level object.
-     */
-    def insertROS(res: FireModelResult): Boolean = {
-      val tbl = base.getTable(TableROS.name)
-
-      def dorun(runIndex: Long, runres: FireModelRunResult) =
-        runres.ratesOfSpread foreach { case (level, ros) =>
-          val rec = TableROS.Rec(repId, runIndex, level, ros)
-          TableROS.inserter(tbl, rec)
-        }
-        
-      writer {
-        dorun(1L, res.resWithCanopyEffect)
-        dorun(2L, res.resWithoutCanopyEffect)
-
-        val rec = TableROS.Rec(repId, 2L, StratumLevel.Canopy, res.canopyROS)
-        TableROS.inserter(tbl, rec)
-      }
-    }
-    
+       
   }
 }
 
@@ -215,19 +148,32 @@ class Database (val base: SqlJetDb, val useTransactions: Boolean) {
  * fix odd `class not found` errors when running from R.
  */
 object Database {
+  
+  val TableNames = Vector(
+      "Sites",
+      "Runs",
+      "Strata",
+      "FlameSummaries",
+      "SurfaceResults",
+      "IgnitionPaths",
+      "ROS")
 
+      
+  /** Integer index to identify a run with or without the canopy. */
+  def runResultIndex(canopyIncluded: Boolean): Int = if (canopyIncluded) 1 else 2
+      
+      
   /**
-   * Creates a new database.
+   * Creates a new Database object based on a new or existing database file.
    * 
    * @param path directory path and name for the database file.
    * 
-   * @param deleteIfExists if `false` and the file given by `path` exists,
-   *   do not create the database ([[None]] is returned); 
-   *   if `true` (default) any existing file is deleted.
+   * @param deleteIfExists if `true` the file given by `path` will be deleted 
+   *   and re-created if it already exists
    *   
-   * @param useTransactions if `true` all database insertions into the creted
-   *   database will be done within WRITE transactions; if `false` all insertions
-   *   will be done directly which is much faster but less safe.
+   * @param useTransactions if `true` all database insertions into the database 
+   *   will be done within WRITE transactions; if `false` all insertions will
+   *   be done directly which is much faster but less safe.
    *   
    * @return An [[Option]] containing the [[Database$]] instance if 
    *   creation was successful, otherwise [[None]].
@@ -237,42 +183,74 @@ object Database {
     
     val f = new java.io.File(path)
     
-    if (checkFile(f, deleteIfExists)) Some( createDB(f, useTransactions) )
-    else None
-  }
-  
-  private def checkFile(f: java.io.File, deleteIfExists: Boolean): Boolean = {
-    if (!f.exists()) true
-    else if (deleteIfExists) f.delete()
-    else false
-  }
-  
-  private def createDB(f: java.io.File, useTransactions: Boolean): Database = {
-    val db = SqlJetDb.open(f, true)
-    db.getOptions.setAutovacuum(true)
-
-    db.beginTransaction(SqlJetTransactionMode.WRITE)
-    try {
-      db.getOptions.setUserVersion(1)
-
-      db.createTable(TableSites.createSQL)
-      db.createTable(TableRuns.createSQL)
-      db.createTable(TableStrata.createSQL)
-      db.createTable(TableFlameSummaries.createSQL)
-      db.createTable(TableSurfaceResults.createSQL)
-      db.createTable(TableIgnitionPaths.createSQL)
-      db.createTable(TableROS.createSQL)
-      db.commit()
+    if (f.exists()) {
+      if (deleteIfExists) {
+        // Delete existing file if possible and create a new database
+        if (f.delete()) createDB(f, useTransactions)
+        else None
+        
+      } else {
+        // Open existing database
+        openDB(f, useTransactions)
+      }
       
-      new Database(db, useTransactions)
-
-    } catch {
-      case ex: Exception => 
-        db.rollback()
-        throw ex
+    } else {
+      // New file
+      createDB(f, useTransactions)
     }
   }
+  
+  private def createDB(f: java.io.File, useTransactions: Boolean): Option[Database] = {
+    val conn = DriverManager.getConnection("jdbc:sqlite:" + f.getAbsolutePath)
 
+    val stmt = conn.createStatement()
+    conn.setAutoCommit(true)    
+
+    try {
+      for (tblname <- TableNames) {
+        val sql = "drop table if exists " + tblname
+        stmt.executeUpdate(sql)
+      }
+      
+      stmt.executeUpdate(TableSites.createSQL)
+      stmt.executeUpdate(TableRuns.createSQL)
+      stmt.executeUpdate(TableStrata.createSQL)
+      stmt.executeUpdate(TableFlameSummaries.createSQL)
+      stmt.executeUpdate(TableSurfaceResults.createSQL)
+      stmt.executeUpdate(TableIgnitionPaths.createSQL)
+      stmt.executeUpdate(TableROS.createSQL)
+      
+      Some( new Database(conn, useTransactions) )
+      
+    } catch {
+      case ex: SQLException =>
+        conn.close()
+        throw ex
+      
+    } finally {
+      stmt.close()
+    }
+  }
+  
+  private def openDB(f: java.io.File, useTransactions: Boolean): Option[Database] = {
+    val conn = DriverManager.getConnection("jdbc:sqlite:" + f.getAbsolutePath)
+    
+    val rs = new ResultSetIterator( conn.getMetaData().getTables(null, null, "%", null) )
+
+    val existingTables = rs.map(r => r.getString(3).toLowerCase()).toSet
+ 
+    val expectedTables = (TableNames map (_.toLowerCase()))
+    
+    val found = expectedTables map (tbl => existingTables.contains(tbl))
+    if (found.contains(false)) {
+      // One or more of the required tables missing
+      None
+    } else {
+      // All required tables present
+      Some( new Database(conn, useTransactions) )
+    }
+  }
+  
 }
 
 /**
@@ -280,10 +258,11 @@ object Database {
  * 
  * Example:
  * {{{
- * Writer.withTransaction(baseDb) {
- *   val tbl = base.getTable(TableStrata.name)
- *   val rec = TableStrata.Rec(repId, levelsLookup)
- *   TableStrata.inserter(tbl, rec)
+ * val repId: Int = ...
+ * val res: FireModelResult = ...
+ * 
+ * Writer.withTransaction(conn) {
+ *   TableSites.inserter(conn, repId, res)
  * }
  * }}}
  */
@@ -301,16 +280,16 @@ object Writer {
    * @param stmts block of statements to execute
    * @return `true` if successful
    */
-  def withTransaction(base: SqlJetDb)(stmts: => Unit): Boolean = {
-    base.beginTransaction(SqlJetTransactionMode.WRITE)
+  def withTransaction(conn: Connection)(stmts: => Unit): Boolean = {
+    conn.setAutoCommit(false)
     try {
       stmts
-      base.commit()
+      conn.commit()
       true
       
     } catch {
-      case ex: SqlJetException =>
-        base.rollback()
+      case ex: SQLException =>
+        conn.rollback()
         false
     }
   }
@@ -327,13 +306,14 @@ object Writer {
    * @param stmts block of statements to execute
    * @return `true` if successful
    */
-  def withoutTransaction(base: SqlJetDb)(stmts: => Unit): Boolean = {
+  def withoutTransaction(conn: Connection)(stmts: => Unit): Boolean = {
+    conn.setAutoCommit(true)
     try {
       stmts
       true
       
     } catch {
-      case ex: SqlJetException =>
+      case ex: SQLException =>
         false
     }
   }
@@ -344,36 +324,31 @@ object Writer {
  * Base trait for database table objects.
  */
 sealed trait Table {
-  /** Abstract type parameter for a table record, to be implemented by Table classes. */
-  type Record
-
   /** Table name. */
   def name: String
   
+  def Fields: Enumeration
+  
   /** SQL statement to create table. */
   def createSQL: String
+  
+  /** SQL statement to insert values. */
+  def insertSQL: String
 
   /** Method to insert a data record into a table. */
-  def inserter(tbl: ISqlJetTable, data: Record): Unit
-
-  // Inserting numbers into a ISqlJetTable requires them
-  // being passed as Object, hence these methods:
-  
-  /** Wraps a Long value as an AnyRef as required by SqlJet methods. */
-  def &(x: Long) = x.asInstanceOf[AnyRef]
-  
-  /** Wraps a Double value as an AnyRef as required by SqlJet methods. */
-  def &(x: Double) = x.asInstanceOf[AnyRef]
-  
-  /** Wraps a Boolean value as an AnyRef as required by SqlJet methods. */
-  def &(x: Boolean) = x.asInstanceOf[AnyRef]
-
+  def inserter(conn: Connection, repId: Int, res: FireModelResult): Unit
 }
 
 
 /////////////////////////////////////////////////////////////////////////////
 object TableSites extends Table {
   val name = "Sites"
+  
+  object Fields extends Enumeration {
+    val RepId = Value(1)
+    val WindSpeed, Temperature, Slope, FuelLoad = Value
+    val MeanFinenessLeaves, MeanFuelDiameter, DeadFuelMoistureProp = Value
+  }
 
   val createSQL = """
       CREATE TABLE Sites (
@@ -388,21 +363,27 @@ object TableSites extends Table {
       
       PRIMARY KEY(repId))"""
 
-  case class Rec(repId: Long, site: Site)
-  type Record = Rec
-
-  def inserter(tbl: ISqlJetTable, rec: Rec): Unit = {
-    val w = rec.site.weather
-    val s = rec.site.surface
-    tbl.insert(
-        &(rec.repId), 
-        &(w.windSpeed),
-        &(w.temperature),
-        &(s.slope),
-        &(s.fuelLoad),
-        &(s.meanFinenessLeaves),
-        &(s.meanFuelDiameter),
-        &(s.deadFuelMoistureProp))     
+  val insertSQL = """
+      INSERT INTO Sites 
+      (repId, windSpeed, temperature, slope, fuelLoad, 
+      meanFinenessLeaves, meanFuelDiameter, deadFuelMoistureProp) VALUES
+      (?,?,?,?,?,?,?,?)
+    """
+  
+  def inserter(conn: Connection, repId: Int, res: FireModelResult): Unit = {
+    val site = res.site
+    
+    val pstmt = conn.prepareStatement(insertSQL)
+    pstmt.setInt(Fields.RepId.id, repId)
+    pstmt.setDouble(Fields.WindSpeed.id, site.weather.windSpeed)
+    pstmt.setDouble(Fields.Temperature.id, site.weather.temperature)
+    pstmt.setDouble(Fields.Slope.id, site.surface.slope)
+    pstmt.setDouble(Fields.FuelLoad.id, site.surface.fuelLoad)
+    pstmt.setDouble(Fields.MeanFinenessLeaves.id, site.surface.meanFinenessLeaves)
+    pstmt.setDouble(Fields.MeanFuelDiameter.id, site.surface.meanFuelDiameter)
+    pstmt.setDouble(Fields.DeadFuelMoistureProp.id, site.surface.deadFuelMoistureProp)
+    
+    pstmt.executeUpdate()
   }
 }
 
@@ -410,6 +391,11 @@ object TableSites extends Table {
 /////////////////////////////////////////////////////////////////////////////
 object TableRuns extends Table {
   val name = "Runs"
+  
+  object Fields extends Enumeration {
+    val RepId = Value(1)
+    val RunIndex, CanopyIncluded = Value
+  }
 
   val createSQL = """
       CREATE TABLE Runs (
@@ -417,12 +403,29 @@ object TableRuns extends Table {
       runIndex INT NOT NULL, 
       canopyIncluded BOOLEAN,
       PRIMARY KEY(repId, runIndex))"""
+  
+  val insertSQL = """
+      INSERT INTO Runs
+      (repId, runIndex, canopyIncluded) VALUES
+      (?,?,?)
+    """
 
-  case class Rec(repId: Long, runIndex: Long, canopyIncluded: Boolean)
-  type Record = Rec
 
-  def inserter(tbl: ISqlJetTable, rec: Rec): Unit = {
-    tbl.insert(&(rec.repId), &(rec.runIndex), &(rec.canopyIncluded))
+  def inserter(conn: Connection, repId: Int, res: FireModelResult): Unit = {
+    val pstmt = conn.prepareStatement(insertSQL)
+    
+    pstmt.setInt(Fields.RepId.id, repId)
+    pstmt.setInt(Fields.RunIndex.id, Database.runResultIndex(true)) 
+    pstmt.setBoolean(Fields.CanopyIncluded.id, true)
+    pstmt.addBatch()
+    
+    pstmt.setInt(Fields.RepId.id, repId)
+    pstmt.setInt(Fields.RunIndex.id, Database.runResultIndex(false)) 
+    pstmt.setBoolean(Fields.CanopyIncluded.id, false)
+    pstmt.addBatch()
+    
+    pstmt.executeBatch()
+    pstmt.close()
   }
 }
 
@@ -430,6 +433,11 @@ object TableRuns extends Table {
 /////////////////////////////////////////////////////////////////////////////
 object TableStrata extends Table {
   val name = "Strata"
+  
+  object Fields extends Enumeration {
+    val RepId = Value(1)
+    val Level = Value
+  }
 
   val createSQL = """
       CREATE TABLE Strata (
@@ -437,19 +445,35 @@ object TableStrata extends Table {
       level TEXT NOT NULL,
       PRIMARY KEY(repId, level))"""
 
-  case class Rec(repId: Long, levels: IndexedSeq[StratumLevel])
-  type Record = Rec
-
-  def inserter(tbl: ISqlJetTable, rec: Rec): Unit = {
-    rec.levels foreach { level =>
-      tbl.insert(&(rec.repId), level.toString)
+  val insertSQL = """
+      INSERT INTO Strata
+      (repId, level) VALUES (?,?)
+    """
+  
+  def inserter(conn: Connection, repId: Int, res: FireModelResult): Unit = {
+    val levels = res.site.vegetation.strata map (_.level)
+    val pstmt = conn.prepareStatement(insertSQL)
+    
+    levels foreach { level =>
+      pstmt.setInt(Fields.RepId.id, repId)
+      pstmt.setString(Fields.Level.id, level.toString())
+      pstmt.addBatch()
     }
+    
+    pstmt.executeBatch()
+    pstmt.close()
   }
 }
+
 
 /////////////////////////////////////////////////////////////////////////////
 object TableFlameSummaries extends Table {
   val name = "FlameSummaries"
+  
+  object Fields extends Enumeration {
+    val RepId = Value(1)
+    val RunIndex, Level, FlameLength, FlameAngle, FlameHeight = Value
+  }
 
   val createSQL = """
       CREATE TABLE FlameSummaries(
@@ -460,23 +484,46 @@ object TableFlameSummaries extends Table {
       flameAngle REAL,
       flameHeight REAL,
       PRIMARY KEY(repId, runIndex, level))"""
+  
+  val insertSQL = """
+      INSERT INTO FlameSummaries
+      (repId, runIndex, level, flameLength, flameAngle, flameHeight) VALUES
+      (?,?,?,?,?,?)
+    """
 
-  case class Rec(repId: Long, runIndex: Long, flameSummary: StratumFlameSummary)
-  type Record = Rec
-
-  def inserter(tbl: ISqlJetTable, rec: Rec): Unit =
-    tbl.insert(
-      &(rec.repId),
-      &(rec.runIndex),
-      rec.flameSummary.level.toString,
-      &(rec.flameSummary.flameLength),
-      &(rec.flameSummary.flameAngle),
-      &(rec.flameSummary.flameHeight))
+  def inserter(conn: Connection, repId: Int, res: FireModelResult): Unit = {
+    val pstmt = conn.prepareStatement(insertSQL)
+  
+    def dorun(runIndex: Int, runres: FireModelRunResult) = {
+      runres.flameSummaries.values foreach { fsum =>
+        pstmt.setInt(Fields.RepId.id, repId)
+        pstmt.setInt(Fields.RunIndex.id, runIndex)
+        pstmt.setString(Fields.Level.id, fsum.level.toString())
+        pstmt.setDouble(Fields.FlameLength.id, fsum.flameLength)
+        pstmt.setDouble(Fields.FlameAngle.id, fsum.flameAngle)
+        pstmt.setDouble(Fields.FlameHeight.id, fsum.flameHeight)
+        
+        pstmt.addBatch()
+      }
+    }
+    
+    dorun(Database.runResultIndex(true), res.resWithCanopyEffect)
+    dorun(Database.runResultIndex(false), res.resWithoutCanopyEffect)
+    
+    pstmt.executeBatch()
+    pstmt.close()
+  }
 }
+
 
 /////////////////////////////////////////////////////////////////////////////
 object TableSurfaceResults extends Table {
   val name = "SurfaceResults"
+  
+  object Fields extends Enumeration {
+    val RepId = Value(1)
+    val RunIndex, WindSpeed, FlameLength, FlameAngle, FlameHeight = Value
+  }
 
   val createSQL = """
       CREATE TABLE SurfaceResults(
@@ -487,26 +534,50 @@ object TableSurfaceResults extends Table {
       flameAngle REAL,
       flameHeight REAL,
       PRIMARY KEY(repId, runIndex))"""
+  
+  val insertSQL = """
+      INSERT INTO SurfaceResults
+      (repId, runIndex, windSpeed, flameLength, flameAngle, flameHeight) VALUES
+      (?,?,?,?,?,?)
+    """
 
-  case class Rec(repId: Long, runIndex: Long, surf: SurfaceOutcome)
-  type Record = Rec
-
-  def inserter(tbl: ISqlJetTable, rec: Rec): Unit =
-    tbl.insert(
-      &(rec.repId),
-      &(rec.runIndex),
-      &(rec.surf.windSpeed),
-      &(rec.surf.flameSummary.flameLength),
-      &(rec.surf.flameSummary.flameAngle),
-      &(rec.surf.flameSummary.flameHeight))
+  def inserter(conn: Connection, repId: Int, res: FireModelResult): Unit = {
+    val pstmt = conn.prepareStatement(insertSQL)
+    
+    def dorun(runIndex: Int, runres: FireModelRunResult) = {
+      val sout = runres.surfaceOutcome
+      
+      pstmt.setInt(Fields.RepId.id, repId)
+      pstmt.setInt(Fields.RunIndex.id, runIndex)
+      pstmt.setDouble(Fields.WindSpeed.id, sout.windSpeed)
+      pstmt.setDouble(Fields.FlameLength.id, sout.flameSummary.flameLength)
+      pstmt.setDouble(Fields.FlameAngle.id, sout.flameSummary.flameAngle)
+      pstmt.setDouble(Fields.FlameHeight.id, sout.flameSummary.flameHeight)
+      
+      pstmt.addBatch()
+    }
+    
+    dorun(Database.runResultIndex(true), res.resWithCanopyEffect)
+    dorun(Database.runResultIndex(false), res.resWithoutCanopyEffect)
+    
+    pstmt.executeBatch()
+    pstmt.close()
+  }
+    
 }
+
 
 /////////////////////////////////////////////////////////////////////////////
 object TableIgnitionPaths extends Table {
   val name = "IgnitionPaths"
+  
+  object Fields extends Enumeration {
+    val RepId = Value(1)
+    val RunIndex, Level, PathType, Species, SegIndex, X0, Y0, X1, Y1, Length, FlameLength = Value
+  }
 
   val createSQL = """
-        CREATE TABLE IgnitionPaths(
+      CREATE TABLE IgnitionPaths(
         repId INT NOT NULL,
         runIndex INT NOT NULL,
         level TEXT NOT NULL,
@@ -519,49 +590,67 @@ object TableIgnitionPaths extends Table {
         y1 REAL,
         length REAL,
         flameLength REAL,
-        PRIMARY KEY(repId, runIndex, level, pathType, species, segIndex))"""
+        PRIMARY KEY(repId, runIndex, level, pathType, species, segIndex))
+    """
+  
+  val insertSQL = """
+      INSERT INTO IgnitionPaths
+      (repId, runIndex, level, pathType, species, segIndex, x0, y0, x1, y1, length, flameLength) 
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
+    """
 
-  case class Rec(repId: Long, runIndex: Long, pathsFlames: StratumPathsFlames)
-  type Record = Rec
+  def inserter(conn: Connection, repId: Int, res: FireModelResult): Unit = {
+    val pstmt = conn.prepareStatement(insertSQL)
 
-  def inserter(tbl: ISqlJetTable, rec: Rec): Unit = {
-    val level = rec.pathsFlames.stratum.level
-
-    worker("plant")
-    worker("stratum")
-
-    def worker(pathType: String) {
-      val (paths, flames) = pathType match {
-        case "plant" => (rec.pathsFlames.plantPaths, rec.pathsFlames.plantFlameSeries)
-        case "stratum" => (rec.pathsFlames.stratumPaths, rec.pathsFlames.stratumFlameSeries)
-        
-        // just in case
-        case _ => throw new Error("Unrecognized path type: " + pathType)
+    def dorun(runIndex: Int, runres: FireModelRunResult): Unit = {
+      runres.pathsAndFlames.values foreach { pnf =>      
+        worker(pnf, "plant")
+        worker(pnf, "stratum")
       }
       
-      paths foreach { pp =>
-        val spc = pp.speciesComponent
-        val spname = spc.species.name
-        
-        (0 until pp.segments.size) foreach { i =>
-          val seg = pp.segments(i)
-          
-          tbl.insert(
-            &(rec.repId),
-            &(rec.runIndex),
-            level.toString,
-            pathType,
-            spname,
-            &(i),
-            &(seg.start.x),
-            &(seg.start.y),
-            &(seg.end.x),
-            &(seg.end.y),
-            &(seg.length),
-            &(seg.flameLength))
+      def worker(pathsFlames: StratumPathsFlames, pathType: String) {
+        val level = pathsFlames.stratum.level
+ 
+        val (paths, flames) = pathType match {
+          case "plant"   => (pathsFlames.plantPaths, pathsFlames.plantFlameSeries)
+          case "stratum" => (pathsFlames.stratumPaths, pathsFlames.stratumFlameSeries)
+
+          // just in case
+          case _         => throw new Error("Unrecognized path type: " + pathType)
+        }
+
+        paths foreach { pp =>
+          val spc = pp.speciesComponent
+          val spname = spc.species.name
+
+          (0 until pp.segments.size) foreach { i =>
+            val seg = pp.segments(i)
+            
+            pstmt.setInt(Fields.RepId.id, repId)
+            pstmt.setInt(Fields.RunIndex.id, runIndex)
+            pstmt.setString(Fields.Level.id, level.toString)
+            pstmt.setString(Fields.PathType.id, pathType)
+            pstmt.setString(Fields.Species.id, spname)
+            pstmt.setInt(Fields.SegIndex.id, i)
+            pstmt.setDouble(Fields.X0.id, seg.start.x)
+            pstmt.setDouble(Fields.Y0.id, seg.start.y)
+            pstmt.setDouble(Fields.X1.id, seg.end.x)
+            pstmt.setDouble(Fields.Y1.id, seg.end.y)
+            pstmt.setDouble(Fields.Length.id, seg.length)
+            pstmt.setDouble(Fields.FlameLength.id, seg.flameLength)
+
+            pstmt.addBatch()
+          }
         }
       }
+
     }
+
+    dorun(Database.runResultIndex(true), res.resWithCanopyEffect)
+    dorun(Database.runResultIndex(false), res.resWithoutCanopyEffect)
+    
+    pstmt.executeBatch()
+    pstmt.close()
   }
 }
 
@@ -569,6 +658,11 @@ object TableIgnitionPaths extends Table {
 /////////////////////////////////////////////////////////////////////////////
 object TableROS extends Table {
   val name = "ROS"
+  
+  object Fields extends Enumeration {
+    val RepId = Value(1)
+    val RunIndex, Level, Ros = Value
+  }
 
   val createSQL = """
       CREATE TABLE ROS(
@@ -577,15 +671,32 @@ object TableROS extends Table {
       level TEXT NOT NULL,
       ros REAL,
       PRIMARY KEY(repId, runIndex, level))"""
+  
+  val insertSQL = """
+      INSERT INTO ROS
+      (repId, runIndex, level, ros) VALUES
+      (?,?,?,?)
+    """
 
-  case class Rec(repId: Long, runIndex: Long, level: StratumLevel, ros: Double)
-  type Record = Rec
+  def inserter(conn: Connection, repId: Int, res: FireModelResult): Unit = {
+    val pstmt = conn.prepareStatement(insertSQL)
+    
+    def dorun(runIndex: Int, runres: FireModelRunResult) = {
+		  runres.ratesOfSpread foreach { case (level, ros) =>
+		    pstmt.setInt(Fields.RepId.id, repId)
+		    pstmt.setInt(Fields.RunIndex.id, runIndex)
+		    pstmt.setString(Fields.Level.id, level.toString())
+		    pstmt.setDouble(Fields.Ros.id, ros)
+		    
+		    pstmt.addBatch()
+		  }
+    }
+        
+    dorun(Database.runResultIndex(true), res.resWithCanopyEffect)
+    dorun(Database.runResultIndex(false), res.resWithoutCanopyEffect)
 
-  def inserter(tbl: ISqlJetTable, rec: Rec): Unit =
-    tbl.insert(
-      &(rec.repId),
-      &(rec.runIndex),
-      rec.level.toString,
-      &(rec.ros))
+    pstmt.executeBatch()
+    pstmt.close()
+  }
 }
 

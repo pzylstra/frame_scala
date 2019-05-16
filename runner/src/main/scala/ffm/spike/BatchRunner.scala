@@ -15,7 +15,7 @@ object BatchRunner {
   val paramDir = "c:/michael/Rworkspaces/Phil/package_testing"
   val paramExt = "txt"
 
-  val paramFilesSubset = List("Heath.txt") // List("93a_wind20_slope02.txt")
+  val paramFilesSubset = List("site_100_weather_12.txt") // List("93a_wind20_slope02.txt")
 
   def main(args: Array[String]): Unit = {
     val allFiles = (new java.io.File(paramDir)).listFiles.filter(_.isFile).toList
