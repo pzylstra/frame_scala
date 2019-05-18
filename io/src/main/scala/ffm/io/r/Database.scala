@@ -96,7 +96,7 @@ class Database (val conn: Connection, val useTransactions: Boolean) {
           else {
             val resId = stmt.executeQuery("select max(repId) as R from Sites")
             resId.next()
-            resId.getInt(1)
+            resId.getInt(1) + 1
           }
         
         id
