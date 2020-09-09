@@ -54,7 +54,7 @@ class DefaultSurfaceFireAttributes(sf: Surface) extends SurfaceFireAttributes {
   def headFlameLength(surfaceWindSpeed: Double): Double =
     if (sf.deadFuelMoistureProp >= ModelSettings.ExtinctionDFMC) 0.0
     else if (sf.fuelLoad < ModelSettings.MinFuelLoadForSurfaceHeadFire) 0.0
-    else 8.64 * headROS(surfaceWindSpeed) + 0.36 * sf.fuelLoad
+    else 8.64 * headROS(surfaceWindSpeed) + 0.036 * sf.fuelLoad
 
   /**
    * Overall surface fire rate of spread (m/s).

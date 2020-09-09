@@ -71,12 +71,12 @@ object ModelSettings {
   /**
    * Minimum fuel load for a surface backing fire (kg / m^2).
    */
-  val MinFuelLoadForSurfaceBackingFire: Double = 0.4
+  val MinFuelLoadForSurfaceBackingFire: Double = 0.0
 
   /**
    * Minimum fuel load for a surface head fire (kg / m^2).
    */  
-  val MinFuelLoadForSurfaceHeadFire = 0.3
+  val MinFuelLoadForSurfaceHeadFire = 0.0
   
   /**
    * The minimum height above surface for calculation of wind speed (m).
