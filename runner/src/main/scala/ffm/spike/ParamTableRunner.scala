@@ -11,7 +11,7 @@ import ffm.fire.FireModelResult
  */
 object ParamTableRunner {
 
-  val defaultPath = "c:/michael/Rworkspaces/Phil/package_testing/test_params.csv"
+  val defaultPath = "c:/michael/Rworkspaces/Phil/package_testing/Final1.csv"
 
   def main(args: Array[String]) {
     val modelResult =

@@ -61,10 +61,10 @@ object Runner {
    * 
    * @return the output database.
    */
-  def run(site: Site, db: Database): Boolean = {
+  def run(site: Site, db: Database): Unit = {
     require(db.isOpen(), "The database is not open")
  
-    db.insertResult( run(site) )   
+    db.insertResult( run(site) )
   }
 }
 

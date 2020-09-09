@@ -7,7 +7,7 @@ scalaVersion in ThisBuild := "2.12.2"
 lazy val printClasspath = taskKey[Unit]("Print classpath")
 
 lazy val commonSettings = Seq(
-  version := "0.1.2",
+  version := "0.2.0",
   organization := "cermb",
   printClasspath := {
     val els = (fullClasspath in Runtime).value.files map(_.getPath)
@@ -54,10 +54,10 @@ lazy val io = (project in file("io")).
     libraryDependencies ++= Seq(
       "org.scala-lang.modules" %% "scala-parser-combinators" % "1.0.6",
       "com.github.tototoshi" %% "scala-csv" % "1.3.4",
-      "org.tmatesoft.sqljet" % "sqljet" % "1.1.10"
+      // "ch.qos.logback" % "logback-classic" % "[1.1,)",
+      // "org.tmatesoft.sqljet" % "sqljet" % "1.1.10",
       // "org.scalikejdbc" %% "scalikejdbc" % "2.3.5",
-      // "org.xerial" % "sqlite-jdbc" % "3.7.2",
-      // "ch.qos.logback" % "logback-classic" % "[1.1,)"
+      "org.xerial" % "sqlite-jdbc" % "3.27.2"
     )
   )
 
