@@ -45,13 +45,15 @@ object DefaultPlantFlameModel extends PlantFlameModel {
       5.25 * sqRootArea
   }
 
-  /**
+/**
    * Calculates flame length for a species given the length of the ignited
    * segment within the crown.
    *
    * Merged leaf flame length model (Zylstra thesis Eq 5.76).
    * We use the average of the number of clumps that will be
    * traversed by the ignited segment (Eq 5.63).
+   * 
+   * Lateral merging in plants uses a horizontal slice of the clump
    *
    * Does merging of leaf flame lengths but does not do lateral
    * merging of plant flames.
@@ -59,10 +61,11 @@ object DefaultPlantFlameModel extends PlantFlameModel {
   def flameLength(species: Species, lengthIgnitedSeg: Double): Double = {
     if (Numerics.Distance.almostZero(lengthIgnitedSeg)) 0.0
     else {
-      val numLeaves = species.leavesPerClump * lengthIgnitedSeg / (species.clumpDiameter + species.clumpSeparation)
+      val numLeaves = species.leavesPerClump * math.min((lengthIgnitedSeg / (species.clumpDiameter + species.clumpSeparation)), 2 * species.leafSeparation )
       val term1 = math.pow(leafFlameLength(species) * math.pow(numLeaves, 0.4) + lengthIgnitedSeg, 4.0)
       val term2 = math.pow(lengthIgnitedSeg, 4.0)
       math.max(lengthIgnitedSeg, math.pow(term1 + term2, 0.25))
     }
   }
 }
+
