@@ -131,7 +131,7 @@ import IgnitionRunType._
                   val d = testPt.distanceTo(phf.flame.origin)
                   val t = phf.flame.plumeTemperature(d, site.weather.temperature)
                   val duration = phf.duration(context.preHeatingEndTime)
-                  dryingFactor *= math.max(0.0, 1.0 - duration / calculateIDT(t))
+                  dryingFactor -= math.max(0.0, duration / calculateIDT(t))
 
                   if (timeStep == 1 && iPt.almostEq(initialPoint) && isFirstTestPoint) {
                     pathBuilder.recordPreHeatingFlameDrying(
@@ -152,7 +152,7 @@ import IgnitionRunType._
                     val flame = incidentFlames(i - 1)
                     val d = locateFlameOrigin(flame, iPt).distanceTo(testPt)
                     val t = flame.plumeTemperature(d, site.weather.temperature)
-                    dryingFactor *= math.max(0.0, 1.0 - ComputationTimeInterval / calculateIDT(t))
+                    dryingFactor -= math.max(0.0, ComputationTimeInterval / calculateIDT(t))
                   }
                 }
 
@@ -162,7 +162,7 @@ import IgnitionRunType._
                     val d = flame.origin.distanceTo(testPt)
                     val t = flame.plumeTemperature(d, site.weather.temperature)
                     val idt = calculateIDT(t)
-                    dryingFactor *= math.max(0.0, 1.0 - ComputationTimeInterval / idt)
+                    dryingFactor -= math.max(0.0, ComputationTimeInterval / idt)
                   }
                 }
 
