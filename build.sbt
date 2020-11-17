@@ -8,7 +8,7 @@ lazy val printClasspath = taskKey[Unit]("Print classpath")
 
 lazy val commonSettings = Seq(
   version := "0.2.0",
-  organization := "cermb",
+  organization := "CSES",
   printClasspath := {
     val els = (fullClasspath in Runtime).value.files map(_.getPath)
     print(els.mkString(java.io.File.pathSeparator))
