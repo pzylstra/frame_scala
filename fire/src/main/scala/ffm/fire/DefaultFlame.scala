@@ -194,8 +194,8 @@ object DefaultFlame {
     val depth = flame1.depthIgnited + flame2.depthIgnited
     val temp = weightedAverageTemperature(flame1, flame2)
     val len = combinedFlameLength(flame1, flame2)
-    val angle = (flame1.flameLength * flame1.angle + flame2.flameLength * flame2.angle) /
-    (flame1.flameLength + flame2.flameLength)
+    val denom = flame1.flameLength + flame2.flameLength
+    val angle = if (Numerics.Default.almostZero(denom)) 0.0 else (flame1.flameLength * flame1.angle + flame2.flameLength * flame2.angle) / denom
     
     new DefaultFlameImpl(len, angle, origin, depth, temp)
   }
@@ -209,9 +209,11 @@ object DefaultFlame {
   /**
    * Average temperature of two flames weighted by flame length.
    */
-  def weightedAverageTemperature(flame1: Flame, flame2: Flame): Double =
-    (flame1.deltaTemperature * flame1.flameLength + flame2.deltaTemperature * flame2.flameLength) /
-    (flame1.flameLength + flame2.flameLength)
+  def weightedAverageTemperature(flame1: Flame, flame2: Flame): Double = {
+    val denom = flame1.flameLength + flame2.flameLength
+    if (Numerics.Default.almostZero(denom)) 0.0
+    else (flame1.deltaTemperature * flame1.flameLength + flame2.deltaTemperature * flame2.flameLength) / denom
+  }
 
   /**
    * Calculates combined flame length based on vertical overlaps.
@@ -221,8 +223,10 @@ object DefaultFlame {
       math.max(0.0,
                math.min(flame1.tip.y, flame2.tip.y) - math.max(flame1.origin.y, flame2.origin.y))
      
-    val overlap1 = verticalOverlap / (flame1.tip.y - flame1.origin.y) * flame1.flameLength 
-    val overlap2 = verticalOverlap / (flame2.tip.y - flame2.origin.y) * flame2.flameLength
+    val denom1 = flame1.tip.y - flame1.origin.y
+    val denom2 = flame2.tip.y - flame2.origin.y
+    val overlap1 = if (Numerics.Distance.almostZero(denom1)) 0.0 else verticalOverlap / denom1 * flame1.flameLength
+    val overlap2 = if (Numerics.Distance.almostZero(denom2)) 0.0 else verticalOverlap / denom2 * flame2.flameLength
     
     val initLen = flame1.flameLength + flame2.flameLength - (overlap1 + overlap2) / 2
     
@@ -247,23 +251,23 @@ object DefaultFlame {
   /////////////////////////////////////////////////////////////////////////////
 
   private class DefaultFlameImpl (
-      val flameLength: Double,
-      val angle: Double,
-      val origin: Coord,
-      val depthIgnited: Double,
-      val deltaTemperature: Double) extends Flame {
+    val flameLength: Double,
+    val angle: Double,
+    val origin: Coord,
+    val depthIgnited: Double,
+    val deltaTemperature: Double) extends Flame {
 
-    // Unlike the original C++ code we don't allow null flames
-    require(flameLength > 0, "flame length must be greater than 0")
-    require(depthIgnited >= 0, "depth Ignited must be 0 or greater")
-    
-    // Compare flame length to depth ignited allowing for distance
-    // tolerance.
-    require(Numerics.Distance.geq(flameLength, depthIgnited), "flame length must not be less than depth ignited")
+  // Unlike the original C++ code we don't allow null flames
+  require(flameLength >= 0, "flame length must be zero or greater")
+  require(depthIgnited >= 0, "depth Ignited must be 0 or greater")
+  require(Numerics.Distance.geq(flameLength, depthIgnited),
+          "flame length must not be less than depth ignited")
 
-    val tip = origin.toBearing(angle, flameLength)
+  private val safeLength = math.max(flameLength, 0.0)
 
-    val plume = Ray(origin, angle)
+  val tip   = origin.toBearing(angle, safeLength)
+  val plume = Ray(origin, angle)
+
 
     /**
      * Determines the temperature at some distance along the plume from the origin of
@@ -275,7 +279,10 @@ object DefaultFlame {
     def plumeDeltaTemperature(dist: Double): Double = {
       def calculatedTemp = {
         val dlen = flameLength - depthIgnited
-        val a = -1.0 / (2.0 * flameLength * dlen)
+        val a =
+  if (Numerics.Default.almostZero(flameLength) || Numerics.Default.almostZero(dlen)) 0.0
+  else -1.0 / (2.0 * flameLength * dlen)
+
 
         if (dist <= flameLength)
           deltaTemperature * math.exp(a * (dist - depthIgnited) * (dist - depthIgnited))
@@ -310,7 +317,10 @@ object DefaultFlame {
           else {
             val deltaT = targetTemp - ambientTemp
             val dlen = flameLength - depthIgnited
-            val a = -1.0 / (2 * flameLength * dlen)
+            val a =
+  if (Numerics.Default.almostZero(flameLength) || Numerics.Default.almostZero(dlen)) 0.0
+  else -1.0 / (2 * flameLength * dlen)
+
 
             if (Numerics.Default.gt(deltaT, deltaTemperature * math.exp(a * dlen * dlen)))
               math.sqrt(math.log(deltaT / deltaTemperature) / a) + depthIgnited

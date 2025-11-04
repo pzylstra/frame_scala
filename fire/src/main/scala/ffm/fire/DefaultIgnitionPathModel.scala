@@ -290,20 +290,23 @@ import IgnitionRunType._
      * The flame is passed in as an Option to handle the case when there is no current
      * incident flame.
      */
-    def potentialIncidentPathLength(incidentFlame: Option[Flame], startPoint: Coord): Double =
-      (for {
-        flame <- incidentFlame
-        surfaceLine = Line(Coord(0, 0), site.surface.slope)
+    
+def potentialIncidentPathLength(incidentFlame: Option[Flame], startPoint: Coord): Double =
+  (for {
+    flame <- incidentFlame
+    surfaceLine = Line(Coord(0, 0), site.surface.slope)
 
-        flameOrigin: Coord = runType match {
-          case PlantRun =>
-            surfaceLine.originOnLine(startPoint, flame.angle).getOrElse(
-              throw new Error("Unable to find incident flame origin"))
+    flameOrigin: Coord = runType match {
+      case PlantRun =>
+        // Prefer projecting along the surface line through the flame origin,
+        // then fall back to a surface-only line through the global surface (0,0).
+        Line(flame.origin, site.surface.slope).originOnLine(startPoint, flame.angle)
+          .orElse(surfaceLine.originOnLine(startPoint, flame.angle))
+          .getOrElse(flame.origin)
 
-          case StratumRun => flame.origin
-        }
-
-        r = Ray(startPoint, flame.angle)
+      case StratumRun => flame.origin
+    }
+r = Ray(startPoint, flame.angle)
         seg <- species.crown.intersection(r)
 
         distForTemp <- flame.distanceForTemperature(species.ignitionTemperature, site.weather.temperature)
@@ -328,17 +331,22 @@ import IgnitionRunType._
      * Returns an origin that a flame has if its plume is to pass
      * through a given point.
      */
-    def locateFlameOrigin(flame: Flame, targetPoint: Coord): Coord = {
-      runType match {
-        case PlantRun =>
-          val surfaceLine = Line(flame.origin, site.surface.slope)
+    
+def locateFlameOrigin(flame: Flame, targetPoint: Coord): Coord = {
+  runType match {
+    case PlantRun =>
+      // Try projecting along the surface line through the flame origin.
+      // If that fails, fall back to a surface-only line through the global surface (0,0).
+      // As a last resort, return the flame's own origin to avoid hard failure.
+      val primaryLine = Line(flame.origin, site.surface.slope)
+      primaryLine.originOnLine(targetPoint, flame.angle)
+        .orElse(Line(Coord(0, 0), site.surface.slope).originOnLine(targetPoint, flame.angle))
+        .getOrElse(flame.origin)
 
-          surfaceLine.originOnLine(targetPoint, flame.angle).getOrElse(
-            throw new Error("Unable to find flame origin"))
+    case StratumRun => flame.origin
+  }
+}
 
-        case StratumRun => flame.origin
-      }
-    }
 
     /*
      * Creates a new plant flame based on ignited segment dimensions

@@ -68,7 +68,7 @@ lazy val runner = (project in file("runner")).
 
 
 // For sbt-pack plugin
-packAutoSettings
+// packAutoSettings
 
 // Tell sbteclipse plugin to:
 // - download source and create Eclipse attachments for dependencies
